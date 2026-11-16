@@ -1,0 +1,181 @@
+<title>八字紫微排盤</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/*@STYLES@*/</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="seal" aria-hidden="true">命</div>
+    <div>
+      <h1>八字紫微排盤</h1>
+      <p>同一份生辰，一次排出子平四柱與紫微斗數十二宮。</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <form id="f" class="birth" novalidate>
+    <div class="birth-head">
+      <p class="eyebrow">生辰資料</p>
+      <div class="saved" id="saved"></div>
+    </div>
+    <div class="fields">
+      <div class="fld">
+        <label for="nm">姓名或代稱</label>
+        <input type="text" id="nm" maxlength="20" placeholder="可留空" autocomplete="off">
+      </div>
+      <div class="fld">
+        <span class="lbl" id="lbl-g">性別</span>
+        <div class="seg" role="radiogroup" aria-labelledby="lbl-g">
+          <label><input type="radio" name="gender" id="g-m" value="男" checked><span>男 · 乾造</span></label>
+          <label><input type="radio" name="gender" id="g-f" value="女"><span>女 · 坤造</span></label>
+        </div>
+      </div>
+      <div class="fld">
+        <span class="lbl" id="lbl-c">曆法</span>
+        <div class="seg" role="radiogroup" aria-labelledby="lbl-c">
+          <label><input type="radio" name="cal" id="c-s" value="solar" checked><span>公曆</span></label>
+          <label><input type="radio" name="cal" id="c-l" value="lunar"><span>農曆</span></label>
+        </div>
+      </div>
+      <div class="fld" id="solar-box">
+        <label for="date">出生日期（公曆）</label>
+        <input type="date" id="date" min="1900-01-01" max="2100-12-31">
+      </div>
+      <div class="fld" id="lunar-box" hidden>
+        <span class="lbl">出生日期（農曆）</span>
+        <div class="row">
+          <input type="number" id="ly" min="1900" max="2100" aria-label="農曆年" style="flex:1.3">
+          <select id="lm" aria-label="農曆月" style="flex:1.2"></select>
+          <select id="ld" aria-label="農曆日" style="flex:1.1"></select>
+        </div>
+        <label class="check"><input type="checkbox" id="leap"><span>這個月是閏月</span></label>
+      </div>
+      <div class="fld">
+        <label for="time">出生時間（當地鐘錶）</label>
+        <input type="time" id="time" step="60">
+      </div>
+      <div class="fld">
+        <label for="place">出生地</label>
+        <select id="place"></select>
+        <div class="row" id="custom-box" hidden>
+          <input type="number" id="lon" step="0.01" min="-180" max="180" aria-label="東經度數，西經填負數" placeholder="東經">
+          <input type="number" id="tz" step="0.25" min="-12" max="14" aria-label="標準時區，UTC 加幾小時" placeholder="UTC+">
+        </div>
+      </div>
+      <div class="fld">
+        <label for="clock">夏令時間</label>
+        <select id="clock">
+          <option value="auto">自動換回標準時</option>
+          <option value="std">手動：已是現行標準時</option>
+          <option value="dst">手動：減 1 小時</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label for="tst">真太陽時</label>
+        <select id="tst">
+          <option value="0">不校正</option>
+          <option value="1">校正經度與均時差</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label for="zi">子時立場</label>
+        <select id="zi">
+          <option value="next">23:00 換日換柱</option>
+          <option value="same">夜子時不換日</option>
+        </select>
+      </div>
+    </div>
+    <p class="help"><b>夏令時間</b>（日光節約時間）：台灣 1945–1979 年間多個年份、中國大陸 1986–1991 年曾把鐘錶撥快一小時。自動模式依瀏覽器內建的時區歷史資料換回標準時，換算結果列在下方；手上的時間若已經換算成現行標準時，才改成手動；日治時期（UTC+9）等當時的標準時也屬於要換算的情況，請維持自動。<b>真太陽時</b>：以出生地經度和均時差換算太陽時。教材範例盤未校正，用不用請在看盤紀錄上標註。<b>子時</b>：23:00–24:00 出生的人，換日換柱算次日，夜子時不換日算當日；教材採主流的換日換柱。</p>
+    <div id="err" class="err" role="alert" hidden></div>
+    <div class="actions">
+      <button type="submit" class="btn primary">排盤</button>
+      <button type="button" class="btn" id="save">儲存此盤</button>
+      <button type="button" class="btn ghost" id="sample">載入教材範例盤</button>
+    </div>
+  </form>
+
+  <section class="summary" id="summary"></section>
+
+  <div class="tabbar">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-bazi" aria-controls="p-bazi" aria-selected="true">八字</button>
+      <button class="tab" role="tab" id="t-ziwei" aria-controls="p-ziwei" aria-selected="false">紫微斗數</button>
+    </div>
+    <div class="tabtools"><button class="btn" id="copy" type="button">複製文字盤</button></div>
+  </div>
+  <div id="copyfallback" hidden></div>
+
+  <section class="panel" id="p-bazi" role="tabpanel" aria-labelledby="t-bazi">
+    <div class="card">
+      <h2>四柱 <small id="bz-sub"></small></h2>
+      <div class="scroll-x"><table class="pillars" id="pillars"></table></div>
+      <p class="note">藏干第一個（粗體）是本氣。星運是日主在各支的十二長生，自坐是各柱天干坐本柱地支；陰干採逆行，判根仍以藏干為準。納音、空亡屬「參考」，介紹但不作主要判斷依據。</p>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h2>旺衰三看 <small>只列觀察，不下結論</small></h2>
+        <ul class="three" id="strength"></ul>
+        <p class="note">身強身弱請先自己推論，再對答案。月令看旺相休囚死（辰戌丑未月以土當令），通根看藏干。</p>
+      </div>
+      <div class="card">
+        <h2>五行字數 <small>天干地支共 8 字</small></h2>
+        <div class="bars" id="bars"></div>
+        <p class="note">只數字面，不含藏干，也不是旺衰分數。量化計分是現代的人為設定，古籍沒有。</p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>原局干支關係</h2>
+      <div class="rels" id="rels"></div>
+    </div>
+    <div class="card">
+      <h2>大運與流年 <small>歲數為虛歲，以立春年起算</small></h2>
+      <div class="yunhead" id="yunhead"></div>
+      <div class="track-row" id="dayun" role="group" aria-label="大運"></div>
+      <div class="sub">
+        <h3 id="ln-title">流年</h3>
+        <div class="track-row" id="liunian" role="group" aria-label="流年"></div>
+      </div>
+      <div class="sub">
+        <h3 id="ix-title">運歲與原局</h3>
+        <div class="rels" id="ix"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>神煞 <span class="tag t-參考">參考</span> <small>介紹但不作主要判斷依據</small></h2>
+      <div class="scroll-x"><table class="ss" id="shensha"></table></div>
+      <p class="note" id="other"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-ziwei" role="tabpanel" aria-labelledby="t-ziwei" hidden>
+    <div class="card yunbar">
+      <div class="chips" id="decs" role="group" aria-label="大限"></div>
+      <div class="chips yrs" id="yrs" role="group" aria-label="流年" hidden></div>
+    </div>
+    <div>
+      <p class="swipe">命盤較寬，可左右滑動。</p>
+      <div class="scroll-x"><div class="zw" id="zw"></div></div>
+      <div class="legend">
+        <span><b class="hua h-lu">祿</b><b class="hua h-quan">權</b><b class="hua h-ke">科</b><b class="hua h-ji">忌</b> 生年四化</span>
+        <span><b class="hua o dec h-lu"><i>大</i>祿</b> 大限四化</span>
+        <span><b class="hua o yr h-ji"><i>年</i>忌</b> 流年四化</span>
+        <span>亮度：廟 旺 得 利 平 不 陷</span>
+        <span>點任一宮，紫底標出它的三方四正</span>
+      </div>
+    </div>
+    <div class="card" id="pdetail"></div>
+  </section>
+
+  <footer class="colophon">
+    <div class="legend2"><span>採信標籤</span><span class="tag t-共識">共識</span><span>多數流派一致</span><span class="tag t-參考">參考</span><span>可用，要搭配全局</span><span class="tag t-存疑">存疑</span><span>僅作古籍閱讀，不主張使用。「不採」的項目不列出。</span></div>
+    <p>節氣、四柱與大運起運由 lunar-javascript 1.7.7 計算；紫微斗數由 iztro 2.6.3 安星（通行版星曜與亮度，閏月以十五日為界，四化庚干取陽武陰同、戊干取貪陰右機、壬干取梁紫左武）。十神、藏干、十二長生、納音、空亡、合沖刑害、神煞用本頁內建表格計算。</p>
+    <p>年柱、月柱依出生瞬間對照節氣時刻（UTC+8）判斷，日柱、時柱依排盤用時。紫微斗數的生年以正月初一分界，年干可能和八字年柱不同。天乙貴人採「甲戊庚牛羊」口訣，羊刃只列陽干。本頁只排盤，不解盤。</p>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/iztro@2.6.3/dist/iztro.min.js"></script>
+<script>
+/*@APP@*/</script>

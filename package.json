@@ -1,0 +1,26 @@
+{
+  "name": "paipan",
+  "private": true,
+  "type": "module",
+  "description": "八字紫微排盤：引擎、頁面原始檔與驗算",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "lint": "eslint .",
+    "test": "node test/run.js engine",
+    "test:browser": "node scripts/build.js && node test/run.js browser",
+    "check": "eslint . && node scripts/build.js && node test/run.js"
+  },
+  "dependencies": {
+    "iztro": "2.6.3",
+    "lunar-javascript": "1.7.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "esbuild": "0.28.2",
+    "eslint": "9.39.5",
+    "globals": "17.14.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
