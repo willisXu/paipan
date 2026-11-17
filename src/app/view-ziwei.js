@@ -4,7 +4,7 @@
 import { SHICHEN, yearGZ, yinyang, zwSpans, zwDaXian, zwTongXian, zwXiaoXian, zwLiuNian, zwLiuYue, zwLiuRi } from '../engine/index.js';
 import { $, esc, reveal, refocus } from './dom.js';
 import { S, today, zwYear } from './state.js';
-import { nameOf, zwOptLabels } from './format.js';
+import { nameOf, zwOptLabels, monthDay } from './format.js';
 
 // 四化的固定順序：引擎給的四化（生年、宮干、各層運限）都依這個順序排
 const HUA = ['祿', '權', '科', '忌'];
@@ -15,7 +15,6 @@ const kindOf = s => (s.type === 'major' ? 'maj' : s.type === 'soft' || s.type ==
 const NOW = '<span class="nowmark">今</span>'; // 今天所在的大限、流年、流月、流日：除了顏色也用文字標出
 const CHILD = 'child'; // S.dec、S.curDec 的特別值：童限。其餘的值是宮位序號
 const span = (a, b) => (a === b ? `${a}` : `${a}–${b}`);
-const monthDay = date => { const [, m, d] = date.split('-').map(Number); return `${m}/${d}`; }; // YYYY-MM-DD → 11/17
 const huaText = layer => layer.hua.map((n, k) => n + '化' + HUA[k]).join('、');
 
 // 畫面上列出的運限分段：童限一段，加上前十個大限

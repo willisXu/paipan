@@ -10,7 +10,7 @@
      relations.js 合沖刑害 → ganzhi
      shensha.js   神煞 → ganzhi、relations
      strength.js  旺衰觀察、五行字數 → ganzhi
-     bazi.js      八字：四柱、節氣位置、大運流年、胎元 → ganzhi、time、relations、shensha、strength
+     bazi.js      八字：四柱、節氣位置、大運流年流月、胎元 → ganzhi、time、relations、shensha、strength
      ziwei.js     紫微斗數起盤、流派設定、十干四化表 → ganzhi、time
      ziwei-yun.js 紫微斗數的運限：大限、童限、小限、流年、流月、流日、流曜 → ganzhi、time
    下面的匯出清單就是引擎的對外介面。各模組另外匯出的 gi、zi、ganWxI、zhiWxI、SAN_HE、lunarMonthDay、lunarMonthName、lunarDayName 只給引擎內部用，不從這裡轉出。 */
@@ -29,6 +29,7 @@
  * @typedef {import('./bazi.js').LiuNian} LiuNian
  * @typedef {import('./bazi.js').DaYun} DaYun
  * @typedef {import('./bazi.js').PreYun} PreYun
+ * @typedef {import('./bazi.js').LiuYue} LiuYue
  * @typedef {import('./bazi.js').BaziChart} BaziChart
  * @typedef {import('./ziwei.js').ZiweiChart} ZiweiChart
  * @typedef {import('./ziwei-yun.js').YunLayer} YunLayer
@@ -39,6 +40,6 @@ export { SHICHEN, resolveTime, equationOfTime, zoneOffset, zoneDataCheck, fmt, p
 export { relations } from './relations.js';
 export { shensha } from './shensha.js';
 export { strength, wuxingCount } from './strength.js';
-export { bazi } from './bazi.js';
+export { bazi, bzLiuYue } from './bazi.js';
 export { ziwei, SIHUA, ZW_OPTIONS } from './ziwei.js';
 export { zwSpans, zwDaXian, zwTongXian, zwXiaoXian, zwLiuNian, zwLiuYue, zwLiuRi } from './ziwei-yun.js';

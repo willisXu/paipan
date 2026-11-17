@@ -35,8 +35,9 @@ const SCENARIOS = [
   { id: '上海 1940', date: '1940-06-01', time: '12:00', place: '上海', dy: 8, ln: 6, dec: 9, yr: 6, pal: 1 },
   { id: '首爾 1988 夏令女命', date: '1988-07-01', time: '12:00', place: '首爾', gender: '女', dy: 3, ln: 8, dec: 4, yr: 8, pal: 5 },
   { id: '手動標準時、高雄、姓名含符號', name: '<b>甲&乙</b>', date: '2000-01-01', time: '13:04', place: '高雄', clock: 'std', dy: 2, ln: 6, dec: 3, yr: 6, pal: 8 },
-  { id: '還沒起運的小孩', date: '2024-03-10', time: '10:00', dy: -1, ln: 2, dec: 'child', yr: 1, pal: 4 }, // 八字點起運前那一格，紫微點童限
+  { id: '還沒起運的小孩', date: '2024-03-10', time: '10:00', dy: -1, ln: 2, lmo: 0, dec: 'child', yr: 1, pal: 4 }, // 八字點起運前那一格再點流月，紫微點童限
   { id: '不存在的閏月', cal: 'lunar', ly: 1984, lm: 5, ld: 3, leap: true, time: '14:00', error: true },
+  { id: '八字的流月', lmo: 9 },
   // 紫微的流月、流日與流派設定
   { id: '流月與流日', mo: 9, day: 2 },
   { id: '閏月的流月下半', yr: 9, mo: 7, day: 5, pal: 3 }, // 2025 年閏六月
@@ -79,6 +80,7 @@ async function capture(browser, sc, harness) {
     await page.locator(`#dayun [data-dy="${sc.dy}"]`).click();
     await page.locator('#liunian .yun').nth(sc.ln).click();
     snaps.bazi2 = await html('#p-bazi');
+    if (sc.lmo !== undefined) { await page.locator(`#liuyue [data-lm="${sc.lmo}"]`).click(); snaps.bazi3 = await html('#p-bazi'); } // 八字的流月
     await page.locator('#t-ziwei').click();
     snaps.ziwei = await html('#p-ziwei');
     // 大限用「第幾個籤」點（0 是本命盤）。童限的籤排在本命盤後面，數的時候跳過，另外用 dec: 'child' 指定

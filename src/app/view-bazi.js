@@ -1,7 +1,9 @@
-/* 八字分頁：四柱表、旺衰三看、五行字數、原局關係、大運流年、神煞，以及大運、流年的點選。
-   「運」那一排有十一格：起運前（序號 -1，沒有大運干支）加上十步大運（序號 0 到 9）。 */
-import { relations, WX, WX_KEY, wxOf, yinyang } from '../engine/index.js';
+/* 八字分頁：四柱表、旺衰三看、五行字數、原局關係、大運流年流月、神煞，以及大運、流年、流月的點選。
+   「運」那一排有十一格：起運前（序號 -1，沒有大運干支）加上十步大運（序號 0 到 9）。
+   流年下面是那一年的十二個節氣月；流月可以不選，選了才接進下面的關係列。 */
+import { relations, bzLiuYue, WX, WX_KEY, wxOf, yinyang } from '../engine/index.js';
 import { $, reveal, refocus } from './dom.js';
+import { monthDay } from './format.js';
 import { S, bzYear, today } from './state.js';
 
 const wxc = c => 'wx-' + WX_KEY[wxOf(c)];
@@ -98,7 +100,7 @@ function renderDayun() {
   /* 大運在交運日換、流年在立春換，所以交運的那一年前後兩格各佔一段（引擎的 years 就是這樣列的）：
      大運的頭尾兩年都是交運年；起運前的頭一年是出生那一年，只有最後一年是交運年 */
   const D = stepOf(bz, S.dy), years = D.years, last = years.length - 1;
-  if (!years.some(n => n.year === S.ln)) S.ln = defaultYear(bz, S.dy);
+  if (!years.some(n => n.year === S.ln)) { S.ln = defaultYear(bz, S.dy); S.lm = null; }
   $('#ln-title').innerHTML = pre
     ? `起運前的流年 <small>約 ${D.endDate} 起運。這段時間還沒有大運干支，只列流年。虛線框是起運的那一年：起運之前才屬於這一段</small>`
     : `${D.gz}運的流年 <small>約 ${D.startDate} 交入、${D.endDate} 交出。虛線框是交運的那一年：頭一年在交入之後、最後一年在交出之前，才屬於這步運</small>`;
@@ -108,13 +110,23 @@ function renderDayun() {
     hint: k === last ? (pre ? `約 ${D.endDate} 起運` : `約 ${D.endDate} 交出這步運`) : k === 0 && !pre ? `約 ${D.startDate} 交入這步運` : '',
   })).join('');
   const N = years.find(n => n.year === S.ln);
+  /* 流月：選到的那個流年裡的十二個節氣月（流年以立春換年，十二個月正好鋪滿）。「今」以日為單位：交節當天就算新的月。
+     讀屏另外聽得到完整的交節時刻 */
+  const months = bzLiuYue(bz, N.year), M = S.lm === null ? null : months[S.lm];
+  $('#lm-title').innerHTML = `${N.year} ${N.gz}年的流月 <small>十二個節氣月，每個月從交節的那一刻起算。點一個月，下面的關係多列一柱流月；再點一次取消</small>`;
+  $('#liuyue').innerHTML = months.map(m => yunBtn({
+    top: m.ganGod, gz: m.gz, bottom: m.zhiGod, y: m.jie, a: `${monthDay(m.from)} 起`,
+    pressed: m.k === S.lm, now: m.from <= today && today < m.to, data: `data-lm="${m.k}"`, hint: `${m.from} ${m.time} 交${m.jie}`,
+  })).join('');
   const sui = { pos: '歲', gan: N.gz[0], zhi: N.gz[1], natal: false };
-  const P = bz.P.concat(pre ? [sui] : [{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }, sui]);
-  $('#ix-title').innerHTML = pre
-    ? `起運前、${N.year} ${N.gz}年 與原局 <small>只列牽涉流年的關係</small>`
-    : `${D.gz}運、${N.year} ${N.gz}年 與原局 <small>只列牽涉運或歲的關係</small>`;
-  $('#ix').innerHTML = relList(relations(P, true), pre ? '這一年和原局沒有合、沖、刑、害。' : '這一運、這一年和原局沒有合、沖、刑、害。');
-  reveal('#dayun'); reveal('#liunian');
+  const P = bz.P.concat(pre ? [] : [{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }], [sui], M ? [{ pos: '流月', gan: M.gz[0], zhi: M.gz[1], natal: false }] : []);
+  // 選了流月，標題多寫這個月從哪一刻到哪一刻
+  const what = `${pre ? '起運前' : `${D.gz}運`}、${N.year} ${N.gz}年${M ? `、${M.gz}月` : ''}`;
+  const scope = M ? (pre ? '只列牽涉流年或流月的關係' : '只列牽涉運、歲或流月的關係') : pre ? '只列牽涉流年的關係' : '只列牽涉運或歲的關係';
+  const when = M ? `。${M.gz}月從 ${M.from} ${M.time} 交${M.jie}起，到 ${M.to} 交${M.k < 11 ? months[M.k + 1].jie : '立春'}為止` : '';
+  $('#ix-title').innerHTML = `${what} 與原局 <small>${scope}${when}</small>`;
+  $('#ix').innerHTML = relList(relations(P, true), `${pre ? '' : '這一運、'}這一年${M ? '、這個月' : ''}和原局沒有合、沖、刑、害。`);
+  reveal('#dayun'); reveal('#liunian'); reveal('#liuyue');
 }
 
 function renderShensha(bz) {
@@ -129,13 +141,21 @@ function renderShensha(bz) {
 export function initBaziView() {
   $('#dayun').addEventListener('click', e => {
     const b = e.target.closest('[data-dy]'); if (!b || !S.bz) return;
+    if (Number(b.dataset.dy) !== S.dy) S.lm = null; // 換了一格運，流年跟著換，選到的流月取消
     S.dy = Number(b.dataset.dy);
     S.ln = defaultYear(S.bz, S.dy);
     renderDayun(); refocus(`[data-dy="${S.dy}"]`);
   });
   $('#liunian').addEventListener('click', e => {
     const b = e.target.closest('[data-ln]'); if (!b || !S.bz) return;
+    if (Number(b.dataset.ln) !== S.ln) S.lm = null; // 換了流年，月份是另外十二個月
     S.ln = Number(b.dataset.ln);
     renderDayun(); refocus(`[data-ln="${S.ln}"]`);
+  });
+  $('#liuyue').addEventListener('click', e => {
+    const b = e.target.closest('[data-lm]'); if (!b || !S.bz) return;
+    const k = Number(b.dataset.lm);
+    S.lm = S.lm === k ? null : k;
+    renderDayun(); refocus(`[data-lm="${k}"]`);
   });
 }

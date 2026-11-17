@@ -4,8 +4,8 @@
 /**
  * 一柱。原局四柱與行運（大運、流年）共用這個形狀；relations()、shensha()、strength()、wuxingCount() 的輸入都是它的陣列。
  * @typedef {object} Pillar
- * @property {string} pos 柱名，一個字。bazi() 排出的四柱是「年」「月」「日」「時」；
- *   頁面接上行運時用「運」（大運）、「歲」（流年）
+ * @property {string} pos 柱名。bazi() 排出的四柱是「年」「月」「日」「時」；
+ *   頁面接上行運時用「運」（大運）、「歲」（流年）、「流月」
  * @property {string} gan 天干，一個字
  * @property {string} zhi 地支，一個字
  * @property {boolean} natal 是否屬於原局四柱：原局為 true，大運、流年為 false。只有 relations() 會看這一欄

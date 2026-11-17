@@ -19,7 +19,7 @@ const graph = new Map([...engineFiles, ...appFiles].map(f => [f, importsOf(f)]))
 console.log('■ 引擎對外介面');
 {
   const expected = ['GAN', 'ZHI', 'WX', 'WX_KEY', 'CANG', 'SHICHEN', 'SIHUA', 'ZW_OPTIONS', 'wxOf', 'yinyang', 'yearGZ', 'tenGod', 'changSheng', 'nayin', 'xunKong', 'jz', 'seasonOf', 'wangXiang',
-    'resolveTime', 'equationOfTime', 'zoneOffset', 'zoneDataCheck', 'relations', 'shensha', 'strength', 'wuxingCount', 'bazi', 'ziwei',
+    'resolveTime', 'equationOfTime', 'zoneOffset', 'zoneDataCheck', 'relations', 'shensha', 'strength', 'wuxingCount', 'bazi', 'bzLiuYue', 'ziwei',
     'zwSpans', 'zwDaXian', 'zwTongXian', 'zwXiaoXian', 'zwLiuNian', 'zwLiuYue', 'zwLiuRi', 'fmt', 'pad', 'fromMs', 'toMs', 'userError'];
   // 這時候全域沒有 Solar、Lunar、iztro：引擎模組的最上層不可以用到它們
   const engine = await import(pathToFileURL(path.join(root, 'src/engine/index.js')).href).catch(e => e);

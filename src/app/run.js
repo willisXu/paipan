@@ -49,6 +49,7 @@ export function run() {
   if (!same) {
     S.dy = defaultStep(bz);
     S.ln = defaultYear(bz, S.dy);
+    S.lm = null;
   }
   if (!zsame) {
     S.curDec = currentDecade();

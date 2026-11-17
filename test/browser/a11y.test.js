@@ -27,6 +27,7 @@ const STATES = [
   ['紫微分頁疊上大限與流年', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs .chip2.cur').click(); }, p => p.locator('#zw .ly.yr').count().then(n => n === 12)],
   ['輸入有錯、上一張盤變淡', async p => { await p.locator('label:has(#c-l)').click(); await setVal(p, '#ly', '2101'); }, async p => await p.locator('#err').isVisible() && await p.locator('main.stale').count() === 1],
   ['已存清單與文字盤的備用文字框', async p => { await p.locator('#save').click(); await p.locator('#copy').click(); await p.waitForSelector('#copytext'); }, async p => await p.locator('#saved .chip').count() === 1 && await p.locator('#copytext').isVisible()],
+  ['八字選了流月（十二個節氣月：「今」和選取在同一顆）', p => p.locator('#liuyue [data-lm="9"]').click(), p => p.locator('#liuyue .yun[aria-pressed=true] .now').count().then(n => n === 1)],
   // 以下兩個是為了量對比：五行色、四化色落在「選取」的底色上
   ['選到交運那一年（虛線框加選取底色）', async p => { await born(p, '1960-07-19', '10:00'); await p.locator('#liunian .yun').first().click(); }, p => p.locator('#liunian .yun.edge[aria-pressed=true]').count().then(n => n === 1)],
   ['紫微換一個大限、換一個宮', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs .chip2').nth(3).click(); await p.locator('#zw .pn').nth(4).click(); }, p => p.locator('#zw .cell.sel .ly.dec').count().then(n => n === 1)],

@@ -2,7 +2,7 @@
    快照測的是「畫面和上次一樣」，這一支測的是「畫面和引擎一樣」：隨機排幾十張盤（含各種流派設定、閏月出生、
    生在立春和正月初一之間），隨機點運限與宮位，每一步把畫面上顯示的東西和引擎用同一組輸入算出來的結果逐項比對——
    紫微：運限四排的籤、十二宮每一格的星曜與亮度、生年與各層四化、流曜、各層宮名、小限、十二神、三方四正的標示、中宮的運限說明；
-   八字：四柱、十一格運、流年、原局關係、運歲關係。
+   八字：四柱、十一格運、流年、十二個流月、原局關係、運歲與流月的關係。
    比對的一邊是頁面的畫法（src/app），另一邊是這裡照引擎的輸出另外組出來的，兩邊各寫各的。 */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -34,7 +34,7 @@ const readPage = page => page.evaluate(() => {
   return {
     err: !one('#err').hidden,
     state: { dec: pressed('#decs', 'data-dec'), yr: pressed('#yrs', 'data-yr'), mo: pressed('#mos', 'data-mo'), day: pressed('#days', 'data-day'), pal: sel ? Number(sel.dataset.pal) : null,
-      dy: pressed('#dayun', 'data-dy'), ln: pressed('#liunian', 'data-ln') },
+      dy: pressed('#dayun', 'data-dy'), ln: pressed('#liunian', 'data-ln'), lm: pressed('#liuyue', 'data-lm') },
     hidden: ['#yrs', '#mos', '#days'].map(s => one(s).hidden),
     decs: all(document, '#decs [data-dec]').map(b => [b.getAttribute('data-dec'), tx(b), b.classList.contains('cur')]),
     yrs: all(document, '#yrs [data-yr]').map(b => [b.getAttribute('data-yr'), tx(b), b.classList.contains('cur')]),
@@ -52,6 +52,7 @@ const readPage = page => page.evaluate(() => {
     gz: tx(one('#bz-sub')),
     dayun: all(document, '#dayun .yun').map(b => [b.dataset.dy, all(b, '.g').map(tx).join('|'), all(b, '.c').map(tx).join(''), tx(b.querySelector('.y')), tx(b.querySelector('.a')), !!b.querySelector('.now')]),
     liunian: all(document, '#liunian .yun').map(b => [b.dataset.ln, all(b, '.g').map(tx).join('|'), all(b, '.c').map(tx).join(''), tx(b.querySelector('.y')), tx(b.querySelector('.a')), b.classList.contains('edge'), !!b.querySelector('.now')]),
+    liuyue: all(document, '#liuyue .yun').map(b => [b.dataset.lm, all(b, '.g').map(tx).join('|'), all(b, '.c').map(tx).join(''), tx(b.querySelector('.y')), tx(b.querySelector('.a')), tx(b.querySelector('.vh')), !!b.querySelector('.now')]),
     rels: all(document, '#rels .rel').map(r => [tx(r.querySelector('.ty')), tx(r.querySelector('.tx')), tx(r.querySelector('.wh')), tx(r.querySelector('.nt'))]),
     ix: all(document, '#ix .rel').map(r => [tx(r.querySelector('.ty')), tx(r.querySelector('.tx')), tx(r.querySelector('.wh')), tx(r.querySelector('.nt'))]),
   };
@@ -84,6 +85,9 @@ function expected({ bz, zw }, st) {
   // 八字：選到的那一格運（-1 是起運前）和流年
   const dy = Number(st.dy), pre = dy === -1, D = pre ? bz.pre : bz.dayun[dy], N = D.years.find(n => n.year === Number(st.ln));
   const sui = N && { pos: '歲', gan: N.gz[0], zhi: N.gz[1], natal: false };
+  // 流月：選到的流年裡的十二個節氣月；選了一個月，運歲關係多接一柱
+  const yue = N ? PP.bzLiuYue(bz, N.year) : [], M = st.lm === null ? null : yue[Number(st.lm)];
+  const flow = [...(pre ? [] : [{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }]), sui, ...(M ? [{ pos: '流月', gan: M.gz[0], zhi: M.gz[1], natal: false }] : [])];
   const relRow = r => [r.type, r.text, `${[...r.where].join('×')}${r.dist ? ` · ${r.dist}` : ''} ${r.tag}`, r.note];
   const step = [bz.pre, ...bz.dayun].findIndex(s => s.startDate <= TODAY && TODAY < s.endDate) - 1; // 今天走到哪一格；都不是的時候是 -2
   const last = D.years.length - 1;
@@ -107,8 +111,9 @@ function expected({ bz, zw }, st) {
     dayun: [['-1', '起運前|', '——', bz.pre.endYear > bz.pre.startYear ? `${bz.pre.startYear}–${String(bz.pre.endYear).slice(-2)}` : `${bz.pre.startYear}`, bz.pre.endAge > 1 ? `1–${bz.pre.endAge} 歲` : '1 歲', step === -1],
       ...bz.dayun.map((d, i) => [String(i), `${d.ganGod}|${d.zhiGod}`, d.gz, `${d.startYear}–${String(d.endYear).slice(-2)}`, `${d.startAge}–${d.endAge} 歲`, step === i])],
     liunian: D.years.map((n, k) => [String(n.year), `${n.ganGod}|${n.zhiGod}`, n.gz, String(n.year), `${n.age} 歲`, k === last || (k === 0 && !pre), n.year === BZ_YEAR]),
+    liuyue: yue.map(m => [String(m.k), `${m.ganGod}|${m.zhiGod}`, m.gz, m.jie, `${monthDay(m.from)} 起`, `${m.from} ${m.time} 交${m.jie}`, m.from <= TODAY && TODAY < m.to]),
     rels: bz.relations.map(relRow),
-    ix: !N ? null : PP.relations(bz.P.concat(pre ? [sui] : [{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }, sui]), true).map(relRow),
+    ix: !N ? null : PP.relations(bz.P.concat(flow), true).map(relRow),
   };
 }
 
@@ -147,6 +152,7 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
     // 八字分頁沒有顯示出來，直接送出點擊事件（畫面照樣重畫）
     點運: () => page.evaluate(k => { const b = document.querySelectorAll('#dayun .yun'); b[k % b.length].click(); }, rnd(0, 10)),
     點八字流年: () => page.evaluate(k => { const b = document.querySelectorAll('#liunian .yun'); b[k % b.length].click(); }, rnd(0, 11)),
+    點八字流月: () => page.evaluate(k => { document.querySelectorAll('#liuyue .yun')[k].click(); }, rnd(0, 11)),
   };
   // 每張盤先一層一層疊到流日、點一個宮，後面再隨便點
   const opening = ['排盤', '點一個大限或童限', '點流年', '點流月', '點流日', '點宮位'];
@@ -162,9 +168,9 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
       return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
     }
   };
-  const names = ['點大限', '點一個大限或童限', '點流年', '點流年', '點流月', '點閏月', '點流日', '點流日', '看今天', '點宮位', '點運', '點八字流年'];
+  const names = ['點大限', '點一個大限或童限', '點流年', '點流年', '點流月', '點閏月', '點流日', '點流日', '看今天', '點宮位', '點運', '點八字流年', '點八字流月', '點八字流月'];
   const problems = []; let steps = 0, charts = 0;
-  const seen = { dec: 0, child: 0, yr: 0, mo: 0, day: 0, leapHalf: 0, xiao: 0, natal: 0, lichunMoved: 0, leapBirth: 0, opts: new Set() };
+  const seen = { dec: 0, child: 0, yr: 0, mo: 0, day: 0, leapHalf: 0, xiao: 0, natal: 0, lichunMoved: 0, leapBirth: 0, bzMonth: 0, bzPre: 0, opts: new Set() };
   for (let c = 0; c < CHARTS && problems.length < 6; c++) {
     let o = rndBirth();
     if (c % 6 === 1) { // 閏月出生
@@ -201,13 +207,15 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
       if (st.yr !== null) { seen.yr++; seen.xiao++; }
       if (st.mo !== null) { seen.mo++; if (/半/.test(got.mos.find(m => m[0] === st.mo)?.[2] || '')) seen.leapHalf++; }
       if (st.day !== null) seen.day++;
+      if (st.lm !== null) seen.bzMonth++;
+      if (st.dy === '-1') seen.bzPre++;
     }
   }
   for (const p of problems) console.log('    ' + p);
   eq(problems.length, 0, `${charts} 張盤共 ${steps} 步，畫面和引擎不同的步數`);
-  ok(seen.dec > 150 && seen.child > 30 && seen.yr > 150 && seen.mo > 100 && seen.day > 50 && seen.leapHalf > 5 && seen.natal > 30 && seen.lichunMoved >= 5 && seen.leapBirth >= 5 && seen.opts.size >= 10,
+  ok(seen.dec > 150 && seen.child > 30 && seen.yr > 150 && seen.mo > 100 && seen.day > 50 && seen.leapHalf > 5 && seen.natal > 30 && seen.lichunMoved >= 5 && seen.leapBirth >= 5 && seen.opts.size >= 10 && seen.bzMonth > 25 && seen.bzPre > 5,
     `各種狀態都比到了：本命盤 ${seen.natal} 步、大限 ${seen.dec}、童限 ${seen.child}、流年（含小限）${seen.yr}、流月 ${seen.mo}（閏月半月 ${seen.leapHalf}）、流日 ${seen.day}；` +
-    `生年因立春年界而不同的盤 ${seen.lichunMoved} 張、閏月出生 ${seen.leapBirth} 張、流派設定組合 ${seen.opts.size} 種`);
+    `生年因立春年界而不同的盤 ${seen.lichunMoved} 張、閏月出生 ${seen.leapBirth} 張、流派設定組合 ${seen.opts.size} 種；八字選了流月 ${seen.bzMonth} 步、起運前那一格 ${seen.bzPre} 步`);
   eq(errors, [], '頁面沒有丟出例外');
   await ctx.close(); await browser.close();
 }

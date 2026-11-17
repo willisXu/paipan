@@ -498,6 +498,53 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
 
   /* 大運在交運日換、流年在立春換。每步運列出和它有重疊的流年，所以交運的那一年前後兩步運都列（虛線框）。
      時鐘固定在 2026-11-11。 */
+  section('八字的流月：十二個節氣月，選了才接進關係列');
+  {
+    const { ctx, page, errors } = await open(browser);
+    const months = () => page.locator('#liuyue .yun').evaluateAll(bs => bs.map(b => [...b.querySelectorAll('.c')].map(c => c.textContent).join('') + ' ' + b.querySelector('.y').textContent + ' ' + b.querySelector('.a').textContent));
+    const pressed = () => page.locator('#liuyue .yun[aria-pressed=true]').evaluateAll(bs => bs.map(b => b.dataset.lm).join());
+    const ix = () => page.locator('#ix .rel').evaluateAll(rs => rs.map(r => `${r.querySelector('.ty').textContent}:${r.querySelector('.wh').textContent.replace(/\s+/g, ' ').trim()}`));
+    const title = s => page.locator(s).innerText().then(t => t.replace(/\s+/g, ' '));
+    // 範例盤，測試的今天是 2026-11-11：選在己卯運、2026 丙午年；立冬（11 月 7 日）已過，所以今天在亥月
+    const m26 = await months(), before = await ix();
+    ok(m26.length === 12 && m26[0] === '庚寅 立春 2/4 起' && m26[9] === '己亥 立冬 11/7 起' && m26[11] === '辛丑 小寒 1/5 起' && (await title('#lm-title')).startsWith('2026 丙午年的流月'), `2026 丙午年的十二個節氣月：${m26.join('｜')}`);
+    ok(await pressed() === '' && (await page.locator('#liuyue .yun:has(.now)').getAttribute('data-lm')) === '9' && (await title('#ix-title')).startsWith('己卯運、2026 丙午年 與原局 只列牽涉運或歲的關係') && before.every(t => !t.includes('流月')),
+      '一開始沒有選流月：關係列只有運和歲；今天所在的亥月標「今」');
+    ok((await page.locator('#liuyue [data-lm="9"] .vh').innerText()) === '2026-11-07 17:52 交立冬', '讀屏聽得到完整的交節時刻');
+    await page.locator('#liuyue [data-lm="9"]').click();
+    const withMonth = await ix();
+    ok(await pressed() === '9' && (await title('#ix-title')) === '己卯運、2026 丙午年、己亥月 與原局 只列牽涉運、歲或流月的關係。己亥月從 2026-11-07 17:52 交立冬起，到 2026-12-07 交大雪為止'
+      && ['天干五合:年×流月 共識', '自刑:月×流月 存疑', '三合:月×時×運×流月 共識'].every(t => withMonth.includes(t)) && before.includes('三合:月×時×運 共識') && before.filter(t => !t.startsWith('三合')).every(t => withMonth.includes(t)) && withMonth.length === before.length + 2,
+      `選了己亥月：標題寫出這個月的起訖；關係多了甲己合、亥亥自刑，原本的亥卯未三合多一個流月的亥，其餘照舊。${withMonth.filter(t => t.includes('流月')).join('｜')}`);
+    ok(await page.evaluate(() => document.activeElement && document.activeElement.dataset.lm) === '9', '點了之後焦點留在同一顆流月上');
+    // 改姓名不算換盤，選到的流月留著；點同一個流年也不取消
+    await setVal(page, '#nm', '流月測試');
+    await page.locator('#liunian [data-ln="2026"]').click();
+    ok(await pressed() === '9', '改姓名、點同一個流年：選到的流月還在');
+    // 換一個流年：月份是另外十二個月，選到的取消；丁未年從壬寅月起
+    await page.locator('#liunian [data-ln="2027"]').click();
+    const m27 = await months();
+    ok(await pressed() === '' && m27[0].startsWith('壬寅 立春') && (await title('#lm-title')).startsWith('2027 丁未年的流月') && (await page.locator('#liuyue .now').count()) === 0 && (await title('#ix-title')).startsWith('己卯運、2027 丁未年 與原局'),
+      `換到 2027 丁未年：流月取消，十二個月換成丁未年的（${m27[0]}），這一年沒有「今」`);
+    // 丑月從小寒起，到下一個立春為止；再點一次取消
+    await page.locator('#liuyue [data-lm="11"]').click();
+    ok((await title('#ix-title')).includes('癸丑月從 2028-01-06') && (await title('#ix-title')).endsWith('交立春為止'), `最後一個月（丑月）到下一個立春為止：${await title('#ix-title')}`);
+    await page.locator('#liuyue [data-lm="11"]').click();
+    ok(await pressed() === '' && (await ix()).every(t => !t.includes('流月')), '再點一次取消：關係列回到只有運和歲');
+    // 換一格運也取消；起運前那一格沒有大運，關係只牽涉流年和流月
+    await page.locator('#liuyue [data-lm="3"]').click();
+    await page.locator('#dayun [data-dy="-1"]').click();
+    ok(await pressed() === '' && (await title('#lm-title')).startsWith('1984 甲子年的流月'), '換一格運：流月取消，換成那一格先看的那一年');
+    await page.locator('#liuyue [data-lm="10"]').click();
+    const pre = await ix();
+    ok((await title('#ix-title')).startsWith('起運前、1984 甲子年、丙子月 與原局 只列牽涉流年或流月的關係') && pre.length > 0 && pre.every(t => /歲|流月/.test(t) && !t.includes('運')), `起運前選流月：只牽涉流年或流月。${pre.join('｜')}`);
+    // 換一張盤（改出生時間）：流月取消
+    await born(page, '1984-11-20', '16:00');
+    ok(await pressed() === '', '換了一張盤：選到的流月取消');
+    ok(errors.length === 0, `頁面沒有丟出錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+
   section('大運的「今」以交運日為準；交運那一年前後兩步運都列');
   {
     const { ctx, page, errors } = await open(browser);

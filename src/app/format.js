@@ -12,6 +12,7 @@ export const dur = days => {
 };
 // 交節時刻寫到秒（引擎就是拿它和出生時間比先後）
 export const jieTime = j => `${fmt(j.t)}:${pad(j.sec)}`;
+export const monthDay = date => { const [, m, d] = date.split('-').map(Number); return `${m}/${d}`; }; // YYYY-MM-DD → 11/17
 export const placeLabel = inp => (inp.place !== 'custom' ? inp.place : inp.lon < 0 ? `西經 ${-inp.lon}°` : `東經 ${inp.lon}°`);
 export const isSample = inp => ['gender', 'calendar', 'y', 'm', 'd', 'h', 'mi', 'place', 'useTST', 'ziRule'].every(k => inp[k] === SAMPLE[k]) && inp.clock !== 'dst';
 export const nameOf = inp => inp.name || (isSample(inp) ? '教材範例盤' : '未命名');

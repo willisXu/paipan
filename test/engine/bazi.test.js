@@ -118,4 +118,53 @@ section('交運日與流年的重疊（2,500 組，對函式庫的起運時刻�
   eq(pre({ y: 1990, m: 2, d: 4, h: 10, mi: 30, gender: '女' }), ['1990-02-04', '1990-02-05', 1990, 1990, 1, 1, '1990庚午'], '出生第二天就起運：起運前只有出生那一年');
 }
 
+/* 流月：一個流年裡的十二個節氣月。每一年都查：首尾相接、月柱和函式庫照節氣排的月柱相同、交節時刻就是函式庫的節氣時刻、
+   交節前一分鐘還是上個月。月干另外用五虎遁的口訣核對 */
+section('流月（1899 到 2215 年每一年）：十二個節氣月首尾相接，月柱、交節時刻對函式庫，月干對五虎遁');
+{
+  const bz = baziOf({ y: 1984, m: 11, d: 20, h: 14, mi: 0 }); // 範例盤，日主戊
+  const at = (date, time, addMin) => { const [y, m, d] = date.split('-').map(Number), [h, mi] = time.split(':').map(Number); return PP.fromMs(PP.toMs({ y, m, d, h, mi }) + addMin * 6e4); };
+  const lunarAt = t => Solar.fromYmdHms(t.y, t.m, t.d, t.h, t.mi, 0).getLunar();
+  const JIE = ['立春', '驚蟄', '清明', '立夏', '芒種', '小暑', '立秋', '白露', '寒露', '立冬', '大雪', '小寒'];
+  const TIGER = { 甲: '丙', 己: '丙', 乙: '戊', 庚: '戊', 丙: '庚', 辛: '庚', 丁: '壬', 壬: '壬', 戊: '甲', 癸: '甲' }; // 甲己之年丙作首…
+  const bad = { shape: 0, chain: 0, pillar: 0, cut: 0, before: 0, tiger: 0, god: 0 }; let months = 0;
+  for (let year = 1899; year <= 2215; year++) {
+    const ms = PP.bzLiuYue(bz, year), yg = PP.yearGZ(year);
+    if (ms.length !== 12 || ms.some((m, k) => m.k !== k || m.year !== year || m.jie !== JIE[k]) || !/-02-0[345]$/.test(ms[0].from) || ms[11].to.slice(0, 7) !== `${year + 1}-02`) bad.shape++;
+    ms.forEach((m, k) => {
+      months++;
+      if (k && ms[k - 1].to !== m.from) bad.chain++;
+      // 月中（交節後十二天）函式庫照節氣排的年柱、月柱
+      const mid = lunarAt(at(m.from, m.time, 12 * 1440));
+      if (mid.getMonthInGanZhiExact() !== m.gz || mid.getYearInGanZhiExact() !== yg) bad.pillar++;
+      // 交節時刻：函式庫說月中的前一個節就是這個節，時刻相同（引擎只留到分）
+      const pj = mid.getPrevJie(), ps = pj.getSolar();
+      if (`${ps.getYear()}-${PP.pad(ps.getMonth())}-${PP.pad(ps.getDay())} ${PP.pad(ps.getHour())}:${PP.pad(ps.getMinute())}` !== `${m.from} ${m.time}`) bad.cut++;
+      // 交節的前一分鐘還是上個月；交節的下一分鐘已經是這個月
+      const want = k ? ms[k - 1].gz : PP.GAN[(PP.GAN.indexOf(m.gz[0]) + 9) % 10] + '丑';
+      if (lunarAt(at(m.from, m.time, -1)).getMonthInGanZhiExact() !== want || lunarAt(at(m.from, m.time, 1)).getMonthInGanZhiExact() !== m.gz) bad.before++;
+      if (m.gz[1] !== PP.ZHI[(k + 2) % 12] || (k === 0 && m.gz[0] !== TIGER[yg[0]]) || (k && PP.GAN.indexOf(m.gz[0]) !== (PP.GAN.indexOf(ms[k - 1].gz[0]) + 1) % 10)) bad.tiger++;
+      if (m.ganGod !== PP.tenGod('戊', m.gz[0]) || m.zhiGod !== PP.tenGod('戊', PP.CANG[m.gz[1]][0])) bad.god++;
+    });
+  }
+  eq(bad, { shape: 0, chain: 0, pillar: 0, cut: 0, before: 0, tiger: 0, god: 0 }, `${months} 個月，違反次數`);
+  const y26 = PP.bzLiuYue(bz, 2026);
+  eq([y26[0], y26[9], y26[11]].map(m => `${m.gz} ${m.ganGod} ${m.zhiGod} ${m.jie} ${m.from} ${m.time} 到 ${m.to}`),
+    ['庚寅 食神 七殺 立春 2026-02-04 04:02 到 2026-03-05', '己亥 劫財 偏財 立冬 2026-11-07 17:52 到 2026-12-07', '辛丑 傷官 劫財 小寒 2027-01-05 22:09 到 2027-02-04'], '範例盤 2026 丙午年：寅月庚寅從立春起，亥月己亥從立冬起，丑月辛丑到下一個立春為止');
+}
+
+/* 流月接進干支關係：位置寫「流月」；和原局同干支是伏吟；和大運或流年同干支不另外列（歲運並臨只指大運和流年） */
+section('流月和原局、運、歲的關係');
+{
+  const P = (s, names) => s.split(' ').map((x, i) => ({ pos: names[i], gan: x[0], zhi: x[1], natal: i < 4 }));
+  const names = ['年', '月', '日', '時', '運', '歲', '流月'];
+  const rel = (s, only = true) => PP.relations(P(s, names), only).map(r => `${r.type}:${r.where.join('×')}`);
+  const a = rel('甲子 乙亥 戊午 己未 己卯 丙午 己亥');
+  eq(a.filter(t => t.includes('流月')), ['天干五合:年×流月', '自刑:月×流月', '三合:月×時×運×流月'], '範例盤、己卯運、丙午年、己亥月：牽涉流月的有甲己合、亥亥自刑，和湊齊的亥卯未三合');
+  ok(rel('甲子 乙亥 戊午 己未 己卯 丙午 乙亥').includes('伏吟:月×流月'), '流月和月柱同干支：伏吟，位置寫 月×流月');
+  const same = rel('甲子 乙亥 戊午 己未 甲戌 甲戌 甲戌');
+  ok(same.filter(t => t.startsWith('歲運並臨')).join() === '歲運並臨:運×歲' && !same.some(t => t.startsWith('伏吟')), `大運、流年、流月三個都是甲戌：只列運和歲的歲運並臨，流月不另外列。${same.filter(t => /並臨|伏吟/.test(t)).join(' ')}`);
+  ok(rel('甲子 乙亥 戊午 己未 己卯 丙午 己亥').every(t => /運|歲|流月/.test(t)), '只列牽涉運、歲或流月的關係');
+}
+
 finish();

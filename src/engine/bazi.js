@@ -71,6 +71,20 @@ import { strength, wuxingCount } from './strength.js';
  */
 
 /**
+ * bzLiuYue() 回傳的一個流月（節氣月）。
+ * @typedef {object} LiuYue
+ * @property {number} k 這一年裡的第幾個月：0 是寅月（立春起），11 是丑月（小寒起）
+ * @property {number} year 所屬的流年（立春年）
+ * @property {string} gz 月柱干支：月支從寅起，月干照流年的年干用五虎遁
+ * @property {string} ganGod 月干對日主的十神
+ * @property {string} zhiGod 月支本氣對日主的十神
+ * @property {string} jie 起頭的節氣，例如「立春」「驚蟄」
+ * @property {string} from 交節那一天的公曆日期（UTC+8），YYYY-MM-DD。這個月從那一天的交節時刻開始
+ * @property {string} time 交節的時刻（UTC+8），HH:MM
+ * @property {string} to 下一個節交節那一天的公曆日期。這個月到那一天的交節時刻為止，所以相鄰兩個月的 to、from 是同一天
+ */
+
+/**
  * bazi() 的結果。
  * @typedef {object} BaziChart
  * @property {string[]} gz 四柱干支，依年、月、日、時，每個兩個字
@@ -180,4 +194,26 @@ function bazi(inp, rt) {
   };
 }
 
-export { bazi };
+/**
+ * 八字的流月：某個流年裡的十二個節氣月，從寅月（立春）到丑月（小寒起，到下一個立春為止）。
+ * 流年以立春換年，所以這十二個月正好鋪滿那個流年。
+ * @param {BaziChart} bz bazi() 的結果；這裡只讀日主（算十神用）
+ * @param {number} year 流年的年數，例如 2026
+ * @returns {LiuYue[]} 十二筆，依時間先後
+ */
+function bzLiuYue(bz, year) {
+  const first = (gi(yearGZ(year)[0]) % 5) * 2 + 2; // 五虎遁：甲己之年丙作首，寅月的月干
+  // 一月二十日之後的第一個節就是這一年的立春；再一個一個往後找，共十三個交節時刻（最後一個是下一年的立春）
+  const cuts = [];
+  for (let j = Solar.fromYmd(year, 1, 20).getLunar().getNextJie(); cuts.length < 13; j = j.getSolar().next(1).getLunar().getNextJie()) cuts.push(j);
+  const date = j => { const s = j.getSolar(); return `${s.getYear()}-${pad(s.getMonth())}-${pad(s.getDay())}`; };
+  return cuts.slice(0, 12).map((j, k) => {
+    const gz = GAN[(first + k) % 10] + ZHI[(k + 2) % 12], s = j.getSolar();
+    return {
+      k, year, gz, ganGod: tenGod(bz.dm, gz[0]), zhiGod: tenGod(bz.dm, CANG[gz[1]][0]),
+      jie: JIE_T[j.getName()] || j.getName(), from: date(j), time: `${pad(s.getHour())}:${pad(s.getMinute())}`, to: date(cuts[k + 1]),
+    };
+  });
+}
+
+export { bazi, bzLiuYue };

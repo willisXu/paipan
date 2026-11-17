@@ -44,6 +44,7 @@ async function monkey(browser, seed, context) {
     刪存檔: () => tapAny('#saved [data-del]'),
     點大運: () => tapAny('#dayun .yun'),
     點流年: () => tapAny('#liunian .yun'),
+    點八字流月: () => tapAny('#liuyue .yun'),
     切分頁: () => tap(page.locator(pick(['#t-bazi', '#t-ziwei']))),
     點大限: () => tapAny('#decs .chip2'),
     點流年籤: () => tapAny('#yrs .chip2'),
@@ -70,7 +71,8 @@ async function monkey(browser, seed, context) {
         err: !$('#err').hidden, stale: $('main').classList.contains('stale'), inert: $('#p-bazi').inert, junk: junk ? junk[0] : '',
         shape: [$('#bz-sub').textContent.trim().split(/\s+/).filter(Boolean).length, n('#dayun .yun'), n('#dayun .yun[aria-pressed=true]'), n('#liunian .yun[aria-pressed=true]'),
           n('#zw .cell'), n('#decs .chip2'), n('#decs .chip2[aria-pressed=true]'), n('#zw .pn[aria-pressed=true]')].join(),
-        years: n('#liunian .yun'), now: Math.max(n('#dayun .now'), n('#liunian .now')), tabs: `${$('#p-bazi').hidden},${$('#p-ziwei').hidden}`,
+        years: n('#liunian .yun'), now: Math.max(n('#dayun .now'), n('#liunian .now'), n('#liuyue .now')),
+        months: `${n('#liuyue .yun')},${n('#liuyue .yun[aria-pressed=true]')},${/月 與原局/.test($('#ix-title').textContent) ? 1 : 0}`, tabs: `${$('#p-bazi').hidden},${$('#p-ziwei').hidden}`,
         // 紫微疊了幾層：各層的宮名個數（大限／流年／流月／流日）、各排選到幾個、流月流日兩排有沒有顯示、小限標記、各排的「今」
         layers: ['dec', 'yr', 'mo', 'day'].map(k => n(`#zw .ly.${k}`)).join('/'),
         picked: ['#yrs', '#mos', '#days'].map(s => n(`${s} .chip2[aria-pressed=true]`)).join('/'),
@@ -84,6 +86,8 @@ async function monkey(browser, seed, context) {
     if (st.err !== st.stale || st.stale !== st.inert) found.push(`錯誤訊息、變淡、鎖住三者不一致：${st.err}／${st.stale}／${st.inert}`);
     // 四柱四個、「運」十一格選一格、流年選一個、十二宮、十二個大限籤（含本命盤與童限）選一個、宮位選一個
     if (st.shape !== '4,11,1,1,12,12,1,1' || st.years < 1 || st.years > 12 || st.now > 1) found.push(`盤面結構不對：${st.shape}，流年 ${st.years} 個，「今」${st.now} 個`);
+    // 八字的流月：十二個月，最多選一個；選了，關係列的標題才寫到月
+    if (!['12,0,0', '12,1,1'].includes(st.months)) found.push(`八字的流月不對（個數、選到幾個、標題有沒有寫月）：${st.months}`);
     if (st.tabs !== 'false,true' && st.tabs !== 'true,false') found.push('兩個分頁同時顯示或同時隱藏');
     /* 紫微的運限一層套一層：裡面那層選了，外面的一定也選了。每一層疊上去就是十二個宮名；
        選了大限才有流年那一排，選了流年才有流月那一排和小限，選了流月才有流日那一排 */

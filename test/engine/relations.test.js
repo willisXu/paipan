@@ -9,7 +9,7 @@ const P4 = s => s.split(' ').map((x, i) => ({ pos: '年月日時運歲'[i], gan:
 /* 干支關係與神煞 */
 section('干支關係、神煞、旺相休囚死');
 {
-  const types = (s, extra) => PP.relations(P4(s), extra).map(r => `${r.type}:${r.where}`);
+  const types = (s, extra) => PP.relations(P4(s), extra).map(r => `${r.type}:${r.where.join('')}`);
   const a = types('甲子 乙亥 戊午 己未');
   ok(a.includes('天干五合:年時') && a.includes('地支六沖:年日') && a.includes('地支六合:日時') && a.includes('六害:年時') && a.includes('天剋地沖:年日'), `範例盤關係 ${a.join(' ')}`);
   ok(types('甲子 丙寅 庚午 丁丑').includes('天剋地沖:年日') && !types('甲子 丙寅 丙午 丁丑').includes('天剋地沖:年日'), '天剋地沖須天干同陰陽相剋');
