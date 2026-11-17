@@ -92,8 +92,8 @@ main > *, .panel > *, .two > * { min-width: 0; }
 .btn.ghost { border-color: transparent; color: var(--accent); padding: 0 8px; }
 .saved { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; }
 .saved .chip { display: inline-flex; align-items: center; border: 1px solid var(--rule-2); border-radius: 999px; overflow: hidden; }
-.saved .chip button { border: 0; background: none; cursor: pointer; padding: 3px 10px; }
-.saved .chip button + button { min-width: 28px; padding: 3px 9px 3px 7px; color: var(--ink-3); }
+.saved .chip button { border: 0; background: none; cursor: pointer; padding: 3px 10px; text-align: left; } /* 名字長、流派設定又改了好幾項時，標籤在手機上會折成幾行：靠左排 */
+.saved .chip button + button { min-width: 28px; padding: 3px 9px 3px 7px; color: var(--ink-3); text-align: center; }
 .err { background: var(--err-bg); color: var(--err); border-radius: 7px; padding: 10px 12px; font-size: 14px; }
 /* 輸入有錯時，下方還留著上一次的盤：調淡（同時由腳本設為 inert），免得被當成目前輸入的結果 */
 main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; }

@@ -5,7 +5,7 @@ import '../helpers/libs.js';
 import * as PP from '../../src/engine/index.js';
 import { ok, eq, section, finish } from '../helpers/harness.js';
 import { seeded } from '../helpers/random.js';
-import { chartOf, md, jdn, gzOf } from '../helpers/charts.js';
+import { chartOf, md, jdn, gzOf, zwJSON } from '../helpers/charts.js';
 
 const { rnd, pick, rndBirth } = seeded(2026111701);
 const { GAN, ZHI } = PP;
@@ -132,13 +132,14 @@ section('流曜與十二神對口訣（六十甲子全部）');
   ok(dx.stars.flat().every(s => s[0] === '運') && dx.stars.flat().length === 10 && yr.stars.flat().length === 11, '大限的流曜十顆、以「運」開頭；流年多一顆年解');
 }
 
-section('流月與流日的曆法（1900 到 2200 年每一年）：月份接得起來、日期換回農曆相同、月干照五虎遁、日干支照儒略日');
+// 頁面列得到的流年：最早是 1900 年初、過年前出生的人的生年 1899；最晚是 2100 年出生、火六局的第十個大限，到 2204 年
+section('流月與流日的曆法（1899 到 2205 年每一年）：月份接得起來、日期換回農曆相同、月干照五虎遁、日干支照儒略日');
 {
   const { zw } = chartOf({ y: 1984, m: 11, d: 20, h: 14, mi: 0 });
   const TIGER = { 甲: '丙', 己: '丙', 乙: '戊', 庚: '戊', 丙: '庚', 辛: '庚', 丁: '壬', 壬: '壬', 戊: '甲', 癸: '甲' }; // 甲己之年丙作首，乙庚之歲戊為頭，丙辛必定尋庚起，丁壬壬位順行流，戊癸甲寅好追求
   const { bad, note } = tally();
   let months = 0, days = 0, split = 0;
-  for (let year = 1900; year <= 2200; year++) {
+  for (let year = 1899; year <= 2205; year++) {
     const list = PP.zwLiuYue(zw, year), leapMonth = LunarYear.fromYear(year).getLeapMonth();
     months += list.length;
     if (list.length !== (leapMonth ? 14 : 12)) note('段數', `${year} 年 ${list.length} 段`);
@@ -277,7 +278,7 @@ section('流派設定：年界（立春當天換年）');
     if (PP.yearGZ(B.birthYear) !== B.yearGZ || Math.abs(B.birthYear - lu.getYear()) > 1 || A.birthYear !== lu.getYear()) note('生年的年數', `${tag}：${B.birthYear}`);
     if (B.opts.year !== 'lichun' || B.dateUsed !== A.dateUsed || B.lunarText !== A.lunarText || B.month !== A.month) note('其餘不變的欄位', tag);
     if (A.yearGZ === B.yearGZ) {
-      if (JSON.stringify(A.chart) !== JSON.stringify(B.chart) || A.birthYear !== B.birthYear) note('生年相同時整張盤相同', tag);
+      if (zwJSON(A.chart) !== zwJSON(B.chart) || A.birthYear !== B.birthYear) note('生年相同時整張盤相同', tag);
     } else {
       differ++; if (B.birthYear > A.birthYear) plus++; else minus++;
       // 生年不同：年干四化、年干支帶的星跟著變，命宮的位置（看月和時）不變
@@ -299,6 +300,9 @@ section('流派設定：年界（立春當天換年）');
   eq([one({ y: 1984, m: 2, d: 3 }, 'lunar'), one({ y: 1984, m: 2, d: 3 }, 'lichun')], [['甲子', 1984], ['癸亥', 1983]], '1984-02-03（過年後、立春前）');
   eq([one({ y: 1984, m: 2, d: 4 }, 'lichun'), one({ y: 1984, m: 2, d: 3, h: 23, mi: 30 }, 'lichun')], [['甲子', 1984], ['甲子', 1984]], '立春當天整天都算新的一年；前一天的晚子時換日後也落在立春日');
   eq(one({ y: 1984, m: 2, d: 3, h: 23, mi: 30, ziRule: 'same' }, 'lichun'), ['癸亥', 1983], '夜子時不換日：前一天的晚子時還在立春之前');
+  // 立春日看的是起盤日（當地日期）：倫敦 1985-02-03 22:00 是 UTC+8 的 2 月 4 日 06:00，八字已過立春交節（05:12），紫微的起盤日還在立春日之前
+  const west = chartOf({ y: 1985, m: 2, d: 3, h: 22, mi: 0, lon: 0, tz: 0, zone: undefined, clock: 'std', zwYear: 'lichun' });
+  eq([west.zw.yearGZ, west.zw.birthYear, west.zw.dateUsed, west.bz.gz[0]], ['甲子', 1984, '1985-02-03', '乙丑'], '出生地在 UTC+8 以西：紫微照當地日期還沒到立春日（甲子），八字照交節時刻已經換年（乙丑）');
 }
 
 section('流派設定：閏月算法');

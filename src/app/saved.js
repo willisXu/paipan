@@ -35,9 +35,11 @@ function check(s) {
 }
 const loadSaved = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v.map(clean).filter(Boolean) : []; } catch (e) { return []; } };
 const storeSaved = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); return true; } catch (e) { return false; } };
-// 同一個生辰可以用不同的紫微流派設定各存一筆：改過設定的那一筆在後面標出來
-const labelOf = s => `${s.name || '未命名'} · ${s.calendar === 'lunar' ? `農曆 ${s.ly}/${s.leap ? '閏' : ''}${s.lm}/${s.ld}` : `${s.y}/${s.m}/${s.d}`} ${pad(s.h)}:${pad(s.mi)}${
-  zwOptChanges({ hua: s.zwHua, year: s.zwYear, leap: s.zwLeap }).length ? ' · 紫微另設' : ''}`;
+// 同一個生辰可以用不同的紫微流派設定各存一筆：改過的那幾項寫在後面，幾筆才分得出來（刪除鈕的名稱也用這一串）
+const labelOf = s => {
+  const changed = zwOptChanges({ hua: s.zwHua, year: s.zwYear, leap: s.zwLeap });
+  return `${s.name || '未命名'} · ${s.calendar === 'lunar' ? `農曆 ${s.ly}/${s.leap ? '閏' : ''}${s.lm}/${s.ld}` : `${s.y}/${s.m}/${s.d}`} ${pad(s.h)}:${pad(s.mi)}${changed.length ? ` · ${changed.join('、')}` : ''}`;
+};
 export function renderSaved() {
   const list = loadSaved();
   $('#saved').innerHTML = list.length ? '<span class="muted" style="font-size:12px">已存</span>' + list.map((s, i) => `<span class="chip"><button type="button" data-load="${i}">${esc(labelOf(s))}</button><button type="button" data-del="${i}" aria-label="刪除 ${esc(labelOf(s))}">×</button></span>`).join('') : '';

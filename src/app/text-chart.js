@@ -24,7 +24,7 @@ function textChart() {
   lines.push('');
   const ming = c.palaces.find(p => p.name === '命宮');
   lines.push(`【紫微斗數】${c.fiveElementsClass}\u3000命主 ${c.soul}\u3000身主 ${c.body}\u3000命宮 ${ming.heavenlyStem}${ming.earthlyBranch}\u3000身宮在${c.palaces.find(p => p.isBodyPalace).name}`);
-  lines.push(`起盤：${zw.dateUsed} ${SHICHEN[rt.hourIndex]}時\u3000農曆 ${zw.lunarText}\u3000生年 ${c.rawDates.chineseDate.yearly.join('')}`);
+  lines.push(`起盤：${zw.dateUsed} ${SHICHEN[rt.hourIndex]}時\u3000農曆 ${zw.lunarText}\u3000生年 ${zw.yearGZ}`);
   lines.push(`流派設定：${zwOptLabels(zw.opts).join('、')}`);
   lines.push('各宮依序：主星｜輔星｜雜曜｜十二長生、博士、歲前、將前');
   const f = s => s.name + (s.brightness || '') + (s.mutagen ? '化' + s.mutagen : '');

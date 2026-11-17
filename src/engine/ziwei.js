@@ -6,7 +6,8 @@ import { jz, yearGZ } from './ganzhi.js';
 /**
  * ziwei() 的結果。
  * @typedef {object} ZiweiChart
- * @property {object} chart iztro 排好的星盤物件（FunctionalAstrolabe），原樣交給頁面；宮位、星曜、生年四化都在上面
+ * @property {object} chart iztro 排好的星盤物件（FunctionalAstrolabe），原樣交給頁面；宮位、星曜、生年四化都在上面。
+ *   上面的四柱（chineseDate、rawDates.chineseDate）是 iztro 自己算的副產品，年界設成立春時月柱會改照節氣算；四柱一律用 bazi() 的，生年干支用下面的 yearGZ
  * @property {boolean} rolled 起盤日期是否進到次日：排盤用時在晚子時，而且立場是換日（ziRule 不是 'same'）時為 true
  * @property {string} lunarText 起盤日的農曆日期，例如「1984 年十月廿八」「2023 年閏二月初十」
  * @property {string} dateUsed 實際拿去起盤的公曆日期，YYYY-MM-DD：平常是排盤用時那一天，rolled 時是次日
@@ -66,10 +67,14 @@ function ziwei(inp, rt) {
   }
   const rolled = rt.lateZi && inp.ziRule !== 'same';
   const t = rolled ? fromMs(toMs(rt.local) + 3600e3) : rt.local;
+  /* 年界要同時交給 iztro 的兩個設定：yearDivide 管主星、輔星、宮干、五行局、長生與博士十二神、大限、小限、紅鸞天喜；
+     其餘照生年安的雜曜（咸池、華蓋、孤辰寡宿、天哭天虛、龍池鳳閣、天官天福、天德月德、旬空截空…）和歲前、將前十二神，
+     iztro 看的是 horoscopeDivide。只設前一個，生在立春和正月初一之間的人會排出半張照立春年、半張照農曆年的盤。
+     運限不向 iztro 查（見 ziwei-yun.js），所以 horoscopeDivide 在這裡只影響本命盤；ageDivide 只是寫明不要跟著函式庫的全域設定走 */
+  const divide = opts.year === 'lichun' ? 'exact' : 'normal';
   const chart = iztro.astro.withOptions({
     type: 'solar', dateStr: `${t.y}-${t.m}-${t.d}`, timeIndex: rt.hourIndex, gender: inp.gender, fixLeap: opts.leap === 'mid', language: 'zh-TW',
-    // 運限不向 iztro 查（見 ziwei-yun.js），horoscopeDivide、ageDivide 只是寫明不要跟著函式庫的全域設定走
-    config: { mutagens: SIHUA_ALT[opts.hua], yearDivide: opts.year === 'lichun' ? 'exact' : 'normal', horoscopeDivide: 'normal', ageDivide: 'normal', dayDivide: 'forward', algorithm: 'default' },
+    config: { mutagens: SIHUA_ALT[opts.hua], yearDivide: divide, horoscopeDivide: divide, ageDivide: 'normal', dayDivide: 'forward', algorithm: 'default' },
   });
   // 農曆日期自己組字：iztro 給的字串在繁體設定下仍寫「闰」「腊月」
   const ld = chart.rawDates.lunarDate;

@@ -391,6 +391,17 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     ok(await fact('生年') === '乙丑年，屬牛 以立春分界；照正月初一是甲子年' && !(await warnings(page)).includes('年界') && await fact('生年四化') === '天機祿、天梁權、紫微科、太陰忌', `年界改成立春：生年從甲子變成乙丑，生年四化跟著換。${await fact('生年')}`);
     await page.locator('#decs [data-dec="child"]').click();
     ok((await text(page, '#yrs .chip2 >> nth=0')).replace(/\s+/g, '') === '1985乙丑1歲' && await text(page, '#decs') !== decsLunar, `虛歲從立春年算起：1985 乙丑年一歲；大限的排列也不同（五行局 ${juLunar} → ${await fact('五行局')}）`);
+    /* 照生年安的雜曜、歲前與將前十二神也要跟著立春年（乙丑）：華蓋在丑、天空在寅，歲建在丑、將星在酉。
+       iztro 把年界拆成兩個設定，漏設一個時這幾樣會留在農曆年（甲子）的位置。童限選到的是一歲那年（1985 乙丑），
+       流年的歲前、將前和本命的就該是同一套 */
+    const cellOf = zhi => page.evaluate(z => {
+      const el = [...document.querySelectorAll('#zw .cell')].find(c => c.querySelector('.gzv').textContent.endsWith(z));
+      return { stars: [...el.querySelectorAll('.st .n')].map(n => n.textContent), gods: [...el.querySelectorAll('.foot .l span')].map(x => x.textContent) };
+    }, zhi);
+    const chou = await cellOf('丑'), yin = await cellOf('寅'), you = await cellOf('酉');
+    const sameGods = await page.evaluate(() => [...document.querySelectorAll('#zw .cell .foot .l')].every(l => { const t = [...l.children].map(x => x.textContent); return t.length === 6 && t[2] === t[3] && t[4] === t[5]; }));
+    ok(chou.stars.includes('華蓋') && yin.stars.includes('天空') && chou.gods[2] === '歲建' && you.gods[4] === '將星' && sameGods,
+      `年界改成立春：照生年安的雜曜和歲前、將前十二神也照乙丑年（華蓋在丑、天空在寅、歲建在丑、將星在酉），一歲那年流年的歲前、將前和本命的相同。丑宮 ${chou.gods.join(' ')}`);
     ok(await page.locator('#dayun [data-dy="3"]').getAttribute('aria-pressed') === 'true' && await summary() === '紫微斗數流派設定目前：生年以立春為界', '只換紫微的盤：八字分頁選到的大運不動');
     // 順序反過來的年：2025 年正月初一 1 月 29 日、立春 2 月 3 日。2 月 1 日出生的人照立春還在甲辰年，生年比農曆年早一年
     await born(page, '2025-02-01', '12:00');
@@ -398,13 +409,22 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     ok(await fact('生年') === '甲辰年，屬龍 以立春分界；照正月初一是乙巳年' && (await text(page, '#yrs .chip2 >> nth=0')).replace(/\s+/g, '') === '2024甲辰1歲' && !(await warnings(page)).includes('年界'), `過年後、立春前出生：照立春是前一年，2024 甲辰年一歲。${await fact('生年')}`);
     // 立春以日為單位：1984-02-04 立春在 23:19，上午出生的人八字還是癸亥年，紫微已經算甲子年
     const p84 = await born(page, '1984-02-04', '10:00');
-    ok(p84.startsWith('癸亥 ') && await fact('生年') === '甲子年，屬鼠 立春當天整天算新的一年；八字年柱看交節的時刻，為癸亥'
+    ok(p84.startsWith('癸亥 ') && await fact('生年') === '甲子年，屬鼠 立春以日為單位換年；八字年柱看交節的時刻，為癸亥'
       && (await warnings(page)).includes('紫微的年界設成立春，以「日」為單位：起盤日 1984-02-04 算甲子年。八字年柱看交節的時刻，這個出生時間算癸亥年。兩邊的生年不同，請留意。這個出生時間，兩種年界都排不出癸亥年的紫微命盤。'),
       '立春當天、交節之前出生：紫微算新的一年、八字算舊的一年，中宮加註並列入提醒（這一天正月初一已過，兩種年界都排不出癸亥年）');
     // 1985-02-04 立春在清晨：凌晨出生的人八字是甲子年；紫微照立春日算乙丑，照正月初一算甲子
     const p85 = await born(page, '1985-02-04', '03:00');
-    ok(p85.startsWith('甲子 ') && await fact('生年') === '乙丑年，屬牛 以立春分界；照正月初一是甲子年。立春當天整天算新的一年；八字年柱看交節的時刻，為甲子' && (await warnings(page)).includes('兩邊的生年不同，請留意。把年界改回「正月初一」，紫微的生年就是甲子年。'),
+    ok(p85.startsWith('甲子 ') && await fact('生年') === '乙丑年，屬牛 以立春分界；照正月初一是甲子年。立春以日為單位換年；八字年柱看交節的時刻，為甲子' && (await warnings(page)).includes('兩邊的生年不同，請留意。把年界改回「正月初一」，紫微的生年就是甲子年。'),
       `立春當天、交節之前，而且還沒過年：提醒改回正月初一就和八字同年。${p85}`);
+    /* 反過來的情形：出生地在 UTC+8 以西。倫敦 1985-02-03 22:00 是 UTC+8 的 2 月 4 日 06:00，已過立春交節（05:12），八字算乙丑年；
+       當地的日期還沒到立春日，紫微照立春日仍算甲子年。這時候中宮的說明不能寫成「立春當天整天算新的一年」 */
+    await page.locator('#place').selectOption('custom');
+    await setVal(page, '#lon', '0'); await setVal(page, '#tz', '0');
+    const west = await born(page, '1985-02-03', '22:00');
+    ok(west.startsWith('乙丑 ') && await fact('生年') === '甲子年，屬鼠 立春以日為單位換年；八字年柱看交節的時刻，為乙丑'
+      && (await warnings(page)).includes('起盤日 1985-02-03 算甲子年。八字年柱看交節的時刻，這個出生時間算乙丑年。兩邊的生年不同，請留意。這個出生時間，兩種年界都排不出乙丑年的紫微命盤。'),
+      `出生地在 UTC+8 以西、當地日期還沒到立春日而八字已過交節：紫微算舊的一年、八字算新的一年，中宮與提醒照實寫。${west}｜${await fact('生年')}`);
+    await page.locator('#place').selectOption('台北');
     await page.locator('#zyear').selectOption('lunar');
     ok(await fact('生年') === '甲子年，屬鼠' && !(await warnings(page)).includes('年界'), '改回正月初一：生年甲子，和八字年柱相同，不再提醒');
 
@@ -448,7 +468,13 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     const backToDefault = `${await page.locator('#zhua').inputValue()},${await page.locator('#zleap').inputValue()}`;
     await page.locator('#save').click();
     const labels = await page.locator('#saved [data-load]').allInnerTexts();
-    ok(label.includes('1984/11/20 14:00 · 紫微另設') && backToDefault === 'tongxing,mid' && labels.length === 2 && !labels[0].includes('紫微另設') && labels[1].includes('紫微另設'), `同一個生辰用不同的流派設定各存一筆，改過設定的那一筆標「紫微另設」；載入範例盤會把設定改回預設。${labels.join('｜')}`);
+    ok(label.includes('1984/11/20 14:00 · 中州派四化、閏月算本月') && backToDefault === 'tongxing,mid' && labels.length === 2 && labels[0].endsWith('14:00') && labels[1].endsWith('14:00 · 中州派四化、閏月算本月'), `同一個生辰用不同的流派設定各存一筆，改過設定的那一筆後面寫出改了哪幾項；載入範例盤會把設定改回預設。${labels.join('｜')}`);
+    // 再用另一組設定存一筆：幾筆的標籤和刪除鈕的名稱各不相同，分得出哪一筆是哪一種排法
+    await page.locator('#zyear').selectOption('lichun');
+    await page.locator('#save').click();
+    const three = await page.locator('#saved [data-load]').allInnerTexts(), dels = await page.locator('#saved [data-del]').evaluateAll(list => list.map(b => b.getAttribute('aria-label')));
+    ok(three.length === 3 && three[0].endsWith('14:00 · 生年以立春為界') && new Set(three).size === 3 && new Set(dels).size === 3 && dels.every((d, i) => d === `刪除 ${three[i]}`), `同一個生辰存了三種設定：標籤各不相同，刪除鈕的名稱跟著標籤。${three.join('｜')}`);
+    await page.locator('#saved [data-del]').nth(0).click();
     await page.reload();
     const closed = await page.locator('#zopts').getAttribute('open') === null;
     await page.locator('#saved [data-load]').nth(1).click();
@@ -465,7 +491,7 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     await page.locator('#saved [data-load]').nth(1).click();
     const vals = await page.evaluate(() => ['#zhua', '#zyear', '#zleap'].map(s => document.querySelector(s).value).join());
     await page.locator('#saved [data-load]').nth(0).click();
-    ok(olds.length === 2 && olds.every(s => !s.includes('紫微另設')) && vals === 'tongxing,lunar,mid' && await errText(page) === '' && await page.locator('#zopts').getAttribute('open') === null && await pillars(page) === p0, '沒有這幾欄的舊存檔、設定值不認得的存檔：照樣讀得回來，設定當成預設');
+    ok(olds.length === 2 && olds.every(s => /^(舊存檔|壞設定) · 1990\/6\/15 10:00$/.test(s)) && vals === 'tongxing,lunar,mid' && await errText(page) === '' && await page.locator('#zopts').getAttribute('open') === null && await pillars(page) === p0, '沒有這幾欄的舊存檔、設定值不認得的存檔：照樣讀得回來，設定當成預設');
     ok(errors.length === 0, `流派設定無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
