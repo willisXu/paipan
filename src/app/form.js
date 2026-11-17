@@ -44,7 +44,7 @@ export function writeForm(inp) {
   syncForm();
 }
 
-// 表單讀成引擎的輸入。欄位沒填或超出範圍時拋 userError，訊息直接顯示給使用者；日期存不存在由引擎再檢查一次
+// 表單讀成引擎的輸入。欄位沒填、格式不對時拋 userError，訊息直接顯示給使用者；日期存不存在、年份在不在可排的範圍，由引擎檢查
 const bad = userError;
 export function readForm() {
   const inp = { name: $('#nm').value.trim(), gender: radio('gender'), calendar: radio('cal'), ziRule: $('#zi').value, useTST: $('#tst').value === '1' };
@@ -55,10 +55,9 @@ export function readForm() {
     const dm = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec($('#date').value);
     if (!dm) throw bad('請填出生日期（公曆，例如 1984-11-20）。');
     inp.y = +dm[1]; inp.m = +dm[2]; inp.d = +dm[3];
-    if (inp.y < 1900 || inp.y > 2100) throw bad('出生年份請填 1900 到 2100 年之間。');
   } else {
     inp.ly = Number($('#ly').value); inp.lm = Number($('#lm').value); inp.ld = Number($('#ld').value); inp.leap = $('#leap').checked;
-    if (!Number.isInteger(inp.ly) || inp.ly < 1900 || inp.ly > 2100) throw bad('農曆年份請填 1900 到 2100 之間的整數。');
+    if ($('#ly').value.trim() === '' || !Number.isInteger(inp.ly)) throw bad('請填農曆年份（整數，例如 1984）。');
   }
   inp.place = $('#place').value;
   if (inp.place === 'custom') {

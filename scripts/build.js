@@ -3,6 +3,7 @@
    和 src/styles.css 一起內嵌進 src/index.html。執行：node scripts/build.js */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
@@ -16,9 +17,14 @@ const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 const deps = JSON.parse(read('package.json')).dependencies;
 const page = read('src/index.html');
 for (const name of ['lunar-javascript', 'iztro']) {
-  const inPage = (page.match(new RegExp(`cdn\\.jsdelivr\\.net/npm/${name}@([\\d.]+)/`)) || [])[1];
+  const tag = page.match(new RegExp(`<script src="https://cdn\\.jsdelivr\\.net/npm/${name}@([\\d.]+)/([^"]+)"([^>]*)>`)) || [];
+  const [, inPage, file, attrs = ''] = tag;
   const installed = require(`${name}/package.json`).version;
   if (inPage !== deps[name] || installed !== deps[name]) throw new Error(`${name} 版本不一致：頁面 ${inPage}、package.json ${deps[name]}、node_modules ${installed}`);
+  // 完整性雜湊（SRI）：瀏覽器只執行和這個雜湊相符的檔案，CDN 上的內容被換掉就不會載入。
+  // 雜湊要和 node_modules 裡同一個檔相符，也就是和測試驗過的那一份相符；升版時照這裡印出的值更新
+  const sri = 'sha384-' + crypto.createHash('sha384').update(fs.readFileSync(path.join(root, 'node_modules', name, file))).digest('base64');
+  if (!attrs.includes(`integrity="${sri}"`) || !attrs.includes('crossorigin="anonymous"')) throw new Error(`src/index.html 載入 ${name} 的 <script> 要帶 integrity="${sri}" crossorigin="anonymous"`);
   // 頁尾說明文字裡也寫了版本號，升版時容易漏改
   const mentioned = [...page.matchAll(new RegExp(`${name} (\\d+\\.\\d+\\.\\d+)`, 'g'))].map(m => m[1]);
   if (!mentioned.length || mentioned.some(v => v !== deps[name])) throw new Error(`src/index.html 的說明文字寫的 ${name} 版本（${mentioned.join('、') || '沒寫'}）和 package.json 的 ${deps[name]} 不同`);

@@ -60,6 +60,7 @@ function palaceCells(L) {
     (over[s.name] || []).forEach(o => badges.push(`<b class="hua o ${o.layer} h-${HUA_K[o.m]}"><i>${o.layer === 'dec' ? '大' : '年'}</i>${o.m}</b>`));
     return `<span class="st ${kindOf(s)}"><span class="n">${s.name}</span>${s.brightness ? `<span class="br">${s.brightness}</span>` : ''}${badges.join('')}</span>`;
   };
+  // 宮名按鈕的 aria-label 以按鈕上看得到的字開頭（宮名，身宮的「身」），後面才補干支與三方四正的角色
   return c.palaces.map(p => {
     const [r, col] = GRID[p.earthlyBranch];
     const lys = [];
@@ -74,7 +75,7 @@ function palaceCells(L) {
         ${lys.length || rl ? `<div class="lys">${lys.join('')}${rl ? `<span class="rolemark">${rl}</span>` : ''}</div>` : ''}
         <div class="foot">
           <span class="l"><span>${p.changsheng12}</span><span>${p.boshi12}</span></span>
-          <span class="m"><button type="button" class="pn" aria-pressed="${p.index === sel}" aria-label="${p.name}，${p.heavenlyStem}${p.earthlyBranch}宮${p.isBodyPalace ? '，身宮' : ''}${rl ? '，所選宮的' + rl : ''}">${p.name}${p.isBodyPalace ? '<span class="mk">身</span>' : ''}</button><span class="dr">${p.decadal.range[0]}–${p.decadal.range[1]}</span></span>
+          <span class="m"><button type="button" class="pn" aria-pressed="${p.index === sel}" aria-label="${p.name}${p.isBodyPalace ? '，身宮' : ''}，${p.heavenlyStem}${p.earthlyBranch}宮${rl ? '，所選宮的' + rl : ''}">${p.name}${p.isBodyPalace ? '<span class="mk">身</span>' : ''}</button><span class="dr">${p.decadal.range[0]}–${p.decadal.range[1]}</span></span>
           <span class="gzv">${p.heavenlyStem}${p.earthlyBranch}</span>
         </div>
       </div>`;

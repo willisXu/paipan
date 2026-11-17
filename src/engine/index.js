@@ -6,13 +6,13 @@
 
    模組與相依（→ 後面是它 import 的模組；沒有循環）：
      ganzhi.js    天干地支的基本表與查詢
-     time.js      時間換算：從鐘錶時間求出生瞬間與排盤用時
+     time.js      時間換算：從鐘錶時間求出生瞬間與排盤用時，輸入檢查
      relations.js 合沖刑害 → ganzhi
      shensha.js   神煞 → ganzhi、relations
      strength.js  旺衰觀察、五行字數 → ganzhi
      bazi.js      八字：四柱、節氣位置、大運流年、胎元 → ganzhi、time、relations、shensha、strength
      ziwei.js     紫微斗數起盤、十干四化表 → time
-   下面的匯出清單就是引擎的對外介面。各模組另外匯出的 gi、zi、ganWxI、zhiWxI、SAN_HE 只給引擎內部用，不從這裡轉出。 */
+   下面的匯出清單就是引擎的對外介面。各模組另外匯出的 gi、zi、ganWxI、zhiWxI、SAN_HE、lunarMonthDay 只給引擎內部用，不從這裡轉出。 */
 
 /**
  * 資料形狀的型別說明寫在各模組裡，並從這裡轉出：頁面或測試要在 JSDoc 標型別時，同樣只參照這個檔，不直接參照其他模組。

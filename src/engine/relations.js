@@ -14,7 +14,6 @@ import { gi, ganWxI } from './ganzhi.js';
  * @property {string} note 補充說明；沒有就是空字串
  */
 
-/* ---------- 干支關係 ---------- */
 const pairIn = (list, a, b) => list.includes(a + b) || list.includes(b + a);
 const keyOf = (obj, a, b) => (obj[a + b] !== undefined ? a + b : obj[b + a] !== undefined ? b + a : null);
 const GAN_HE = { 甲己: '土', 乙庚: '金', 丙辛: '水', 丁壬: '木', 戊癸: '火' };
@@ -31,11 +30,10 @@ const LOW = '權重低，僅作古籍閱讀。';
 // 天剋：同陰陽的天干相剋（甲戊、丙庚…，含甲庚等四沖）
 const ganKe = (a, b) => gi(a) % 2 === gi(b) % 2 && ((ganWxI(a) + 2) % 5 === ganWxI(b) || (ganWxI(b) + 2) % 5 === ganWxI(a));
 
-/* pillars：[{pos, gan, zhi, natal}]，原局四柱 natal=true，大運流年 natal=false。
-   onlyWithExtra=true 時只回報牽涉運或歲的關係。 */
 /**
  * @param {import('./ganzhi.js').Pillar[]} pillars 要互相比對的柱，照柱序排：年、月、日、時，後面才接運、歲
- * @param {boolean} [onlyWithExtra=false]
+ *   （原局四柱 natal 為 true，大運、流年為 false）
+ * @param {boolean} [onlyWithExtra=false] 為 true 時只回報牽涉運或歲的關係
  * @returns {Relation[]} 先是兩兩之間的關係（依柱序），最後是三合、三會、半合
  */
 function relations(pillars, onlyWithExtra = false) {
@@ -62,7 +60,7 @@ function relations(pillars, onlyWithExtra = false) {
       if (a.zhi === b.zhi && ZI_XING.includes(a.zhi)) add('自刑', `${a.zhi}${b.zhi}自刑`, '存疑', LOW);
       if (pairIn(HAI, a.zhi, b.zhi)) add('六害', `${a.zhi}${b.zhi}害`, '存疑', LOW);
       if (pairIn(PO, a.zhi, b.zhi)) add('六破', `${a.zhi}${b.zhi}破`, '存疑', LOW);
-      if (chong && ganKe(a.gan, b.gan)) add('天剋地沖', `${a.gan}${a.zhi}與${b.gan}${b.zhi}`, '參考');
+      if (chong && ganKe(a.gan, b.gan)) add('天剋地沖', `${a.gan}${a.zhi}與${b.gan}${b.zhi}`, '參考', '這裡的天剋是同陰陽的天干相剋（含甲庚等四沖），再加上地支相沖；也有只認四沖的說法。');
       if (a.gan === b.gan && a.zhi === b.zhi && !(a.natal && b.natal)) {
         if (!a.natal && !b.natal) add('歲運並臨', `運與歲同為${a.gan}${a.zhi}`, '存疑', '坊間有重話說法，教材列為存疑、不主張使用。');
         else add('伏吟', `${a.gan}${a.zhi}重見`, '參考');

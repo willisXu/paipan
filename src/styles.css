@@ -1,10 +1,10 @@
 /* 版面：一份命書。上方是生辰帖，下方以分頁切換「四柱」與「十二宮」；字的顏色就是它的五行。 */
 :root {
   --paper: #ECEFED; --sheet: #F9FAF9; --ink: #1B232C; --ink-2: #47525C; --ink-3: #5F6A73;
-  --rule: #D5DCDA; --rule-2: #A9B5B6;
+  --rule: #D5DCDA; --rule-2: #A9B5B6; --field-line: #7F8B8C;
   --accent: #5A3D6E; --accent-ink: #FFFFFF; --accent-soft: #EEE8F3; --accent-line: #CDBCD9;
-  --wood: #2D7A4B; --fire: #B8392C; --earth: #82603D; --metal: #86650A; --water: #1F5C9C;
-  --lu: #2D7A4B; --quan: #B4580C; --ke: #2563A8; --ji: #B42318; --hua-ink: #FFFFFF;
+  --wood: #2B7648; --fire: #B8392C; --earth: #82603D; --metal: #836309; --water: #1F5C9C;
+  --lu: #2B7648; --quan: #A64F08; --ke: #2563A8; --ji: #B42318; --hua-ink: #FFFFFF;
   --lay-dec: #5A3D6E; --lay-yr: #0D7480;
   --warn: #7A4A00; --warn-bg: #FBF0DD; --err: #A3261B; --err-bg: #FBE9E6;
   --f-display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", serif;
@@ -13,7 +13,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #0F1418; --sheet: #161D23; --ink: #E5EAEC; --ink-2: #A3AEB5; --ink-3: #8A959D;
-    --rule: #26313A; --rule-2: #3E4B55;
+    --rule: #26313A; --rule-2: #3E4B55; --field-line: #687680;
     --accent: #C9B0DF; --accent-ink: #1A1320; --accent-soft: #272030; --accent-line: #4E3F5E;
     --wood: #6CC28E; --fire: #F2806F; --earth: #CDA680; --metal: #E8BE55; --water: #78AEEC;
     --lu: #6CC28E; --quan: #F2A35E; --ke: #7FB2F2; --ji: #F47E70; --hua-ink: #0F1418;
@@ -24,7 +24,7 @@
 }
 :root[data-theme="dark"] {
   --paper: #0F1418; --sheet: #161D23; --ink: #E5EAEC; --ink-2: #A3AEB5; --ink-3: #8A959D;
-  --rule: #26313A; --rule-2: #3E4B55;
+  --rule: #26313A; --rule-2: #3E4B55; --field-line: #687680;
   --accent: #C9B0DF; --accent-ink: #1A1320; --accent-soft: #272030; --accent-line: #4E3F5E;
   --wood: #6CC28E; --fire: #F2806F; --earth: #CDA680; --metal: #E8BE55; --water: #78AEEC;
   --lu: #6CC28E; --quan: #F2A35E; --ke: #7FB2F2; --ji: #F47E70; --hua-ink: #0F1418;
@@ -59,7 +59,7 @@ main > *, .panel > *, .two > * { min-width: 0; }
 .fld { display: grid; gap: 5px; min-width: 0; align-content: start; }
 .fld > label, .fld > .lbl { font-size: 12px; letter-spacing: .08em; color: var(--ink-2); }
 .fld input[type=text], .fld input[type=date], .fld input[type=time], .fld input[type=number], .fld select {
-  width: 100%; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--rule-2); border-radius: 7px; background: var(--paper);
+  width: 100%; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--field-line); border-radius: 7px; background: var(--paper);
   font-variant-numeric: tabular-nums;
 }
 .fld .row { display: flex; gap: 6px; min-width: 0; }
@@ -69,9 +69,9 @@ main > *, .panel > *, .two > * { min-width: 0; }
 #lunar-box .row > * { padding: 0 8px; }
 .help { font-size: 12.5px; color: var(--ink-3); line-height: 1.65; margin: 0; max-width: 92ch; }
 .help b { font-weight: 500; color: var(--ink-2); }
-.seg { display: flex; border: 1px solid var(--rule-2); border-radius: 7px; overflow: hidden; height: 40px; }
+.seg { display: flex; border: 1px solid var(--field-line); border-radius: 7px; overflow: hidden; height: 40px; }
 .seg label { flex: 1; display: grid; place-items: center; cursor: pointer; font-size: 14px; padding: 0 8px; background: var(--paper); white-space: nowrap; }
-.seg label + label { border-left: 1px solid var(--rule-2); }
+.seg label + label { border-left: 1px solid var(--field-line); }
 .seg input { position: absolute; opacity: 0; pointer-events: none; }
 .seg input:checked + span { color: var(--accent); font-weight: 700; }
 .seg label:has(input:checked) { background: var(--accent-soft); }
@@ -174,12 +174,15 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .yunhead b { color: var(--ink); font-weight: 500; }
 .track-row { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(66px, 1fr); gap: 6px; overflow-x: auto; padding: 9px 2px 8px; }
 .yun { display: grid; justify-items: center; gap: 1px; padding: 8px 4px 7px; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); cursor: pointer; position: relative; font-variant-numeric: tabular-nums; }
+.yun.edge { border-style: dashed; border-color: var(--ink-3); } /* 交運的那一年：只有交運日的一側屬於這步運 */
 .yun:hover { border-color: var(--accent-line); }
 .yun[aria-pressed=true] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
 .yun .g { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .yun .c { font: 400 24px/1.12 var(--f-display); }
 .yun .y { font-size: 12.5px; color: var(--ink); margin-top: 2px; }
 .yun .a { font-size: 11.5px; color: var(--ink-3); }
+/* 只給讀屏的文字：畫面上不佔位置、看不到 */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .yun .now { position: absolute; top: -8px; right: 4px; font-size: 10.5px; line-height: 1.5; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
 .sub { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--rule-2); }
 .sub h3 { margin: 0 0 8px; font: 700 15px var(--f-display); }
@@ -280,7 +283,7 @@ footer.colophon p { margin: 0; max-width: 76ch; }
 footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: 8px 16px; border-radius: 999px; font-size: 14px; z-index: 20; }
-.copybox { width: 100%; min-height: 220px; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; background: var(--paper); color: var(--ink); border: 1px solid var(--rule-2); border-radius: 7px; padding: 10px; }
+.copybox { width: 100%; min-height: 220px; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; background: var(--paper); color: var(--ink); border: 1px solid var(--field-line); border-radius: 7px; padding: 10px; }
 @media (prefers-reduced-motion: no-preference) {
   .btn, .chip2, .yun, .cell, .tab { transition: background-color .15s, border-color .15s, color .15s; }
 }

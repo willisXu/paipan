@@ -16,7 +16,7 @@ const GROUPS = [
   { key: 'browser', title: '瀏覽器', jobs: 1 },
 ];
 // 排程提示：各支大約的秒數。久的先開始，總時間才不會被排在最後的那一支拖長；只影響開始的順序，沒列到的當作很快
-const SECONDS = { 'engine/ziwei.test.js': 60, 'engine/bazi.test.js': 35, 'engine/snapshot.test.js': 30, 'engine/invariants.test.js': 30, 'engine/tables.test.js': 11, 'engine/time.test.js': 10 };
+const SECONDS = { 'engine/ziwei.test.js': 52, 'engine/snapshot.test.js': 18, 'engine/bazi.test.js': 14, 'engine/tables.test.js': 12, 'engine/invariants.test.js': 11, 'engine/time.test.js': 11 };
 const TIMEOUT_MIN = 10; // 單支測試的時間上限。正常最久的一支約一分鐘，超過這麼多多半是卡住了
 /* 摘要行有三種樣子，都以 ✓ 或 ✗ 開頭：
    「✓ 95 項通過，0 項失敗」（helpers/harness.js 的 finish）

@@ -1,11 +1,11 @@
 /* 瀏覽器測試（盤面與退路）：node test/browser/chart.test.js。先跑 node scripts/build.js。
-   少見但真的會出現的盤面（剛過交節、兩種年界不同年、沒有關係／神煞／通根的盤、歲運並臨），
+   少見但真的會出現的盤面（交節前後、兩種年界不同年、沒有關係／神煞／通根的盤、歲運並臨、交運那一年、換日的時刻、重複與不存在的鐘面時間），
    以及出狀況時的退路（函式庫丟出例外、瀏覽器沒有時區資料、運限查不到）。 */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ok, section, finish } from '../helpers/harness.js';
-import { launch, writeHarness, openPage, text, setVal, blockClipboard } from '../helpers/browser.js';
+import { launch, writeHarness, openPage, text, setVal, blockClipboard, buttonNames } from '../helpers/browser.js';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paipan-chart-'));
 const harness = writeHarness(dir);
@@ -46,14 +46,29 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
 (async () => {
   const browser = await launch();
 
-  section('節氣提醒：還沒到交節、剛過交節（1984 立冬 11-07 13:45）');
+  section('節氣提醒：還沒到交節、剛過交節、同一分鐘（1984 立冬 11-07 13:45:32）');
   {
     const { ctx, page, errors } = await open(browser);
     const before = await born(page, '1984-11-07', '13:30'), warnBefore = await warnings(page), sumBefore = await text(page, '#summary');
-    ok(before.split(' ')[1] === '甲戌' && warnBefore.includes('出生時間離立冬交節（1984-11-07 13:45，UTC+8）不到一天') && sumBefore.includes('距立冬 15 分鐘'), '交節前 15 分鐘：月柱還是甲戌，提醒離立冬不到一天');
+    ok(before.split(' ')[1] === '甲戌' && warnBefore.includes('出生時間離立冬交節（1984-11-07 13:45:32，UTC+8）不到一天') && sumBefore.includes('距立冬 15 分鐘'), '交節前 15 分鐘：月柱還是甲戌，提醒離立冬不到一天');
     const after = await born(page, '1984-11-07', '14:00'), warnAfter = await warnings(page);
-    ok(after.split(' ')[1] === '乙亥' && (await text(page, '#summary')).includes('立冬後 15 分鐘'), '剛過交節 15 分鐘：月柱換成乙亥');
-    ok(warnAfter.includes('出生時間離立冬交節（1984-11-07 13:45，UTC+8）不到一天') && !warnAfter.includes('大雪'), '剛過交節時提醒的是剛過的立冬，不是下一個節');
+    ok(after.split(' ')[1] === '乙亥' && (await text(page, '#summary')).includes('立冬後 14 分鐘') && (await text(page, '#summary')).includes('立冬交節 1984-11-07 13:45:32（UTC+8）'), '剛過交節 14 分 28 秒：月柱換成乙亥，交節時刻寫到秒');
+    ok(warnAfter.includes('出生時間離立冬交節（1984-11-07 13:45:32，UTC+8）不到一天') && !warnAfter.includes('大雪') && warnAfter.includes('出生時間稍有誤差，月柱就可能不同'), '剛過交節時提醒的是剛過的立冬，不是下一個節');
+    // 出生時間只到分。和交節同一分鐘時先後分不出來：引擎把出生當作那一分鐘的 0 秒，所以算在交節之前
+    const same = await born(page, '1984-11-07', '13:45'), warnSame = await warnings(page);
+    ok(same.split(' ')[1] === '甲戌' && (await text(page, '#summary')).includes('距立冬 不到 1 分鐘') && warnSame.includes('出生和交節在同一分鐘，先後分不出來；目前當作交節之前排盤，差幾秒月柱就不同'), '出生和交節同一分鐘（13:45）：不寫「0 分鐘」，並說明目前當作交節之前');
+    const next = await born(page, '1984-11-07', '13:46');
+    ok(next.split(' ')[1] === '乙亥' && (await text(page, '#summary')).includes('立冬後 不到 1 分鐘') && !(await warnings(page)).includes('同一分鐘'), '下一分鐘（13:46）已經確定在交節之後：不說分不出來');
+    // 立春：連年柱、大運順逆都跟著變（2024 立春 02-04 16:27:07）
+    const lichun = await born(page, '2024-02-04', '16:27'), warnLichun = await warnings(page), headBefore = await text(page, '#yunhead');
+    const lichunAfter = await born(page, '2024-02-04', '16:28');
+    ok(lichun.startsWith('癸卯 乙丑') && lichunAfter.startsWith('甲辰 丙寅') && headBefore.includes('陰男逆行') && (await text(page, '#yunhead')).includes('陽男順行') && warnLichun.includes('差幾秒年柱、月柱和大運順逆就不同'),
+      '立春前後一分鐘：年柱、月柱、大運順逆都不同，提醒裡寫明');
+    // 交節時刻的秒數正好是 0（1990 立春 02-04 10:14:00）：同一分鐘出生的人和交節同時，算在交節之後
+    const onDot = await born(page, '1990-02-04', '10:14'), warnOnDot = await warnings(page), sumOnDot = await text(page, '#summary');
+    const justBefore = await born(page, '1990-02-04', '10:13');
+    ok(onDot.startsWith('庚午 戊寅') && justBefore.startsWith('己巳 丁丑') && sumOnDot.includes('立春後 不到 1 分鐘') && sumOnDot.includes('立春交節 1990-02-04 10:14:00') && warnOnDot.includes('出生和交節在同一分鐘，先後分不出來；目前當作交節之後排盤，差幾秒年柱、月柱和大運順逆就不同'),
+      `交節時刻正好在整分上：同一分鐘出生的當作交節之後，提醒也這樣寫。${onDot}｜${justBefore}`);
     ok(errors.length === 0, '節氣提醒無錯誤：' + errors.join(' | '));
     await ctx.close();
   }
@@ -217,24 +232,59 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     await ctx.close();
   }
 
-  section('大運的「今」以交運日為準、農曆日期用繁體、存檔裡一筆壞資料不連累其他筆');
+  /* 大運在交運日換、流年在立春換。每步運列出和它有重疊的流年，所以交運的那一年前後兩步運都列（虛線框）。
+     時鐘固定在 2026-11-11。 */
+  section('大運的「今」以交運日為準；交運那一年前後兩步運都列');
   {
-    // 女 1960-06-25 10:00：每十年在 12 月 6 日前後換運，2026-11-11 還在丙子運（2016–2026），不是 2026 年起的乙亥運
-    const { ctx, page, errors } = await open(browser, { init: [blockClipboard] });
+    const { ctx, page, errors } = await open(browser);
+    const years = () => page.locator('#liunian .yun').evaluateAll(els => els.map(e => e.dataset.ln + (e.classList.contains('edge') ? '邊' : '') + (e.querySelector('.now') ? '今' : '') + (e.getAttribute('aria-pressed') === 'true' ? '選' : '')).join(' '));
+    const nowYun = page.locator('#dayun .yun:has(.now)');
+    const nowName = async () => (await buttonNames(nowYun))[0]; // 標著「今」的那步運，讀屏唸出來的名稱
+    // 女 1960-06-25 10:00：每十年在 12 月 6 日前後換運。2026-11-11 還在丙子運，不是標示 2026 年起的乙亥運
     await page.locator('label:has(#g-f)').click();
     await born(page, '1960-06-25', '10:00');
-    const now = page.locator('#dayun .yun:has(.now)');
-    ok(await now.count() === 1 && (await now.getAttribute('aria-label')).startsWith('丙子運') && await now.getAttribute('aria-pressed') === 'true', '交運年裡還沒到交運日：「今」標在舊的那步運，並預設選它');
-    ok((await text(page, '#ln-title')).includes('2026-12-06 交出') && await page.locator('#liunian .yun').count() === 11, '流年列多列出交運的那一年，標題寫明交運日');
-    ok(await page.locator('#liunian .yun[aria-pressed=true] .now').count() === 1 && (await text(page, '#ix-title')).startsWith('丙子運、2026 丙午年'), '今年選在舊運底下：丙子運配 2026 丙午年');
+    ok(await nowYun.count() === 1 && /^今.*丙子.*2016–25/.test(await nowName()) && await nowYun.getAttribute('aria-pressed') === 'true', '交運年裡還沒到交運日：「今」標在舊的那步運，並預設選它');
+    ok(await years() === '2016邊 2017 2018 2019 2020 2021 2022 2023 2024 2025 2026邊今選' && (await text(page, '#ln-title')).includes('約 2016-12-06 交入、2026-12-06 交出') && (await text(page, '#ix-title')).startsWith('丙子運、2026 丙午年'),
+      '交運日在立春之後：流年從交入那一年列到交出那一年，頭尾是虛線框；今年配的是舊運');
+    const lnNames = await buttonNames(page.locator('#liunian'));
+    ok(/丙申.{2}201657歲約2016-12-06交入這步運$/.test(lnNames[0]) && /^今.*丙午.{2}202667歲約2026-12-06交出這步運$/.test(lnNames[10]) && lnNames.slice(1, 10).every(n => !n.includes('這步運')),
+      `頭尾兩年讀屏唸得到交運日（畫面上是虛線框），中間的年份不加：${lnNames[0]}｜${lnNames[10]}`);
     await page.locator('#dayun [data-dy="6"]').click();
-    ok((await text(page, '#ix-title')).startsWith('乙亥運、2026 丙午年') && await page.locator('#dayun .yun:has(.now)').getAttribute('aria-pressed') === 'false', '點到下一步運：可以先看它配今年，「今」仍留在舊運上');
+    ok(await years() === '2026邊今選 2027 2028 2029 2030 2031 2032 2033 2034 2035 2036邊' && (await text(page, '#ix-title')).startsWith('乙亥運、2026 丙午年') && await nowYun.getAttribute('aria-pressed') === 'false', '點下一步運：它也列 2026 年（12 月交入之後），「今」仍留在舊運上');
     await page.locator('#dayun [data-dy="5"]').click();
     ok((await text(page, '#ix-title')).startsWith('丙子運、2026 丙午年'), '點回目前這步運，回到今年');
-    // 還沒起運的小孩：沒有哪一步運是「今」
+
+    // 男 1960-07-19 10:00：交運日 1 月 18 日，在立春之前。己丑運 2017-01-18 到 2027-01-18
     await page.locator('label:has(#g-m)').click();
+    await born(page, '1960-07-19', '10:00');
+    ok(/^今.*己丑.*2017–26/.test(await nowName()) && await years() === '2016邊 2017 2018 2019 2020 2021 2022 2023 2024 2025 2026邊今選' && (await text(page, '#ln-title')).includes('約 2017-01-18 交入、2027-01-18 交出'),
+      '交運日在立春之前：頭一年是標示年的前一年（2017-01-18 交入時還是 2016 丙申年），不列 2027（那時已經交出）');
+    await page.locator('#dayun [data-dy="6"]').click();
+    ok(await years() === '2026邊今 2027選 2028 2029 2030 2031 2032 2033 2034 2035 2036邊', '點下一步運（庚寅，2027-01-18 交入）：先看標示的起始年 2027，2026 年也列在前面');
+    await page.locator('#dayun [data-dy="4"]').click();
+    ok(await years() === '2006邊 2007選 2008 2009 2010 2011 2012 2013 2014 2015 2016邊', '點上一步運（戊子）：2016 年前後兩步運都列');
+    // 過了交運日、還沒過立春：2027-01-25 已經是庚寅運，流年仍是 2026 丙午
+    await page.clock.setFixedTime(new Date('2027-01-25T12:00:00+08:00'));
+    await page.reload();
+    await born(page, '1960-07-19', '10:00');
+    ok(/^今.*庚寅.*2027–36/.test(await nowName()) && await years() === '2026邊今選 2027 2028 2029 2030 2031 2032 2033 2034 2035 2036邊' && (await text(page, '#ix-title')).startsWith('庚寅運、2026 丙午年'),
+      '2027-01-25：已交入庚寅運、還沒立春，今年是庚寅運配 2026 丙午年');
+    await page.clock.setFixedTime(new Date('2027-01-10T12:00:00+08:00'));
+    await page.reload();
+    await born(page, '1960-07-19', '10:00');
+    ok(/^今.*己丑/.test(await nowName()) && (await text(page, '#ix-title')).startsWith('己丑運、2026 丙午年'), '2027-01-10：還沒到交運日，仍是己丑運配 2026 丙午年');
+    ok(errors.length === 0, `大運交運日無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+
+  section('還沒起運、農曆日期用繁體、存檔裡一筆壞資料不連累其他筆');
+  {
+    const { ctx, page, errors } = await open(browser, { init: [blockClipboard] });
+    // 還沒起運的小孩：沒有哪一步運是「今」
     await born(page, '2024-03-10', '10:00');
-    ok(await page.locator('#dayun .now').count() === 0 && await page.locator('#dayun [data-dy="0"]').getAttribute('aria-pressed') === 'true', '還沒起運：不標「今」，預設看第一步運');
+    ok(await page.locator('#dayun .now').count() === 0 && await page.locator('#dayun [data-dy="0"]').getAttribute('aria-pressed') === 'true' && (await text(page, '#yunhead')).includes('交運（今天還沒起運）'), '還沒起運：不標「今」，預設看第一步運，並註明今天還沒起運');
+    await born(page, '1984-11-20', '14:00');
+    ok(!(await text(page, '#yunhead')).includes('還沒起運'), '已經起運的盤沒有這個註記');
     // 農曆日期：閏月與十二月
     await born(page, '2020-06-07', '10:00');
     await page.locator('#t-ziwei').click();
@@ -250,6 +300,51 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     ok(await page.locator('#saved [data-load]').count() === 2, '三筆存檔裡一筆讀不了：其他兩筆照常列出');
     await page.locator('#save').click();
     ok(await page.evaluate(() => JSON.parse(localStorage.getItem('paipan-saved-v1')).length) === 3, '這時再儲存一筆，原有的兩筆還在');
+    await ctx.close();
+  }
+
+  /* 日柱、紫微在什麼時候換日，要看子時立場；鐘錶往回撥、往前撥的那一段，鐘面時間會重複或不存在。
+     這幾種情況排出來的盤對出生時間很敏感，頁面要提醒。 */
+  section('提醒：換日的時刻、重複與不存在的鐘面時間、金門馬祖');
+  {
+    const { ctx, page, errors } = await open(browser);
+    const NEAR = '離時辰交界只有 5 分鐘。出生時間差幾分鐘，或改變真太陽時的設定，';
+    const at = async (date, time) => `${(await born(page, date, time)).split(' ')[2]}｜${await warnings(page)}`;
+    // 換日換柱：23:00 是時辰交界，也是換日的時刻
+    const n1 = await at('1990-05-23', '22:55'), n2 = await at('1990-05-23', '23:05'), n3 = await at('1990-05-23', '12:55');
+    ok(n1 === `戊子｜排盤用時 22:55 ${NEAR}日柱、時柱和紫微命盤就會不同（23:00 同時是換日的時刻）。` && n2 === `己丑｜排盤用時 23:05 ${NEAR}日柱、時柱和紫微命盤就會不同（23:00 同時是換日的時刻）。`, '換日換柱：23:00 前後日柱不同（戊子、己丑），提醒裡寫明日柱也會變');
+    ok(n3 === `戊子｜排盤用時 12:55 ${NEAR}時柱和紫微命宮就會不同。`, '其他時辰交界只提時柱和紫微命宮');
+    // 夜子時不換日：23:00 只換時柱，日柱和紫微的起盤日到午夜才換
+    await page.locator('#zi').selectOption('same');
+    const s1 = await at('1990-05-23', '22:55'), s2 = await at('1990-05-23', '23:55'), s3 = await at('1990-05-24', '00:05'), s4 = await at('1990-05-24', '00:00');
+    const MID = '採「夜子時不換日」時，日柱和紫微的起盤日在午夜才換；出生時間差幾分鐘，或改變真太陽時的設定，日柱和紫微命盤就會不同。';
+    ok(s1 === `戊子｜排盤用時 22:55 ${NEAR}時柱和紫微命宮就會不同。`, '夜子時不換日：23:00 的提醒不提日柱');
+    ok(s2 === `戊子｜排盤用時 23:55 離午夜只有 5 分鐘。${MID}` && s3 === `己丑｜排盤用時 00:05 離午夜只有 5 分鐘。${MID}` && s4 === `己丑｜排盤用時 00:00 正好是午夜。${MID}`, '夜子時不換日：午夜前後日柱不同（戊子、己丑），有提醒');
+    await page.locator('#zi').selectOption('next');
+    ok(!(await at('1990-05-24', '00:05')).includes('午夜'), '換日換柱的立場下，午夜不是交界，不提醒');
+
+    // 台灣 1975 年夏令時間：9 月 30 日 24:00 撥回 23:00，23:00–24:00 出現兩次
+    const twice = await at('1975-09-30', '23:30');
+    ok(twice === '庚辰｜這個鐘面時間在當天出現過兩次（鐘錶往回撥，例如夏令時間結束）：前一次是 UTC+9，後一次是 UTC+8。目前當作後一次排盤。如果出生在前一次，請把「夏令時間」改成「手動：減 1 小時」。', '重複的鐘面時間（台北 1975-09-30 23:30）：說明取的是哪一次、另一次怎麼指定');
+    await page.locator('#clock').selectOption('dst');
+    ok((await pillars(page)).split(' ')[2] === '己卯' && (await text(page, '#summary')).includes('1975-09-30 22:30　亥時') && !(await warnings(page)).includes('出現過兩次'), '照提醒改成手動減 1 小時：變成 22:30 亥時、日柱己卯，提醒消失');
+    await page.locator('#clock').selectOption('auto');
+    ok((await at('1975-04-01', '00:30')) === '丁丑｜這個鐘面時間在當天不存在：鐘錶直接往前撥過去了（例如夏令時間開始）。目前當作撥動之前的 UTC+8 排盤，請確認出生時間。', '不存在的鐘面時間（台北 1975-04-01 00:30）');
+    ok(!(await at('1975-07-01', '12:00')).includes('出現過兩次') && !(await warnings(page)).includes('不存在'), '平常的夏令時間不會有這兩種提醒');
+    await page.locator('#place').selectOption('首爾');
+    ok((await at('1960-09-17', '23:30')).includes('前一次是 UTC+9:30，後一次是 UTC+8:30。目前當作後一次排盤。如果出生在前一次，請自己換算成現行標準時再填，並把「夏令時間」改成「手動：已是現行標準時」。'), '另一次不是「現行標準時加一小時」時（首爾 1960），請使用者自己換算');
+
+    // 金門、馬祖查的是台北的時區資料
+    const KM = '查的是台北的時區資料。1949 年以前，當地的鐘錶不一定和台灣本島相同，上面的換算請自行查證；不適用的話，請把「夏令時間」改成手動。';
+    await page.locator('#place').selectOption('金門');
+    const km1940 = await at('1940-06-01', '09:30'), km1960 = await at('1960-07-01', '09:30'), km1930 = await at('1930-06-01', '09:30');
+    await page.locator('#place').selectOption('馬祖南竿');
+    const mz1940 = await at('1940-06-01', '09:30');
+    await page.locator('#place').selectOption('台北');
+    const tp1940 = await at('1940-06-01', '09:30');
+    ok(km1940.includes('金門' + KM) && mz1940.includes('馬祖南竿' + KM) && !km1960.includes(KM) && !km1930.includes(KM) && !tp1940.includes(KM) && tp1940.includes('排盤已換算成現行標準時'),
+      '金門、馬祖在 1949 年以前有換算時，提醒台北的資料不一定適用；1950 年以後、沒有換算、或其他地點都不提');
+    ok(errors.length === 0, `提醒無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 

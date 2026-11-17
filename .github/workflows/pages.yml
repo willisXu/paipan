@@ -1,41 +1,46 @@
-# 推到 main 時：跑語法檢查與引擎測試，通過後把排盤頁面發布到 GitHub Pages
-name: 發布到 GitHub Pages
+# 推到 main 或開 PR 時：語法檢查、建置，跑全部測試（引擎和瀏覽器）。
+# 在 main 上全部通過，才把排盤頁面發布到 GitHub Pages；PR 只檢查、不發布。
+# 第一次使用要先到 repo 的 Settings → Pages，把 Source 設成「GitHub Actions」。
+name: 檢查與發布
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: pages-${{ github.ref }}
+  # PR 有新的推送就取消舊的檢查；main 上的發布讓它跑完
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: npm test
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
+      # 瀏覽器測試用的 Chromium 和它需要的系統套件（含中文字型）；版本跟著 package.json 裡的 playwright
+      - run: npx playwright install --with-deps --only-shell chromium
+      # 語法檢查 → 建置（核對函式庫版本與完整性雜湊）→ 引擎測試 → 瀏覽器測試
+      - run: npm run check
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist/site
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

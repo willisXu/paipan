@@ -46,7 +46,7 @@
       <div class="fld" id="lunar-box" hidden>
         <span class="lbl">出生日期（農曆）</span>
         <div class="row">
-          <input type="number" id="ly" min="1900" max="2100" aria-label="農曆年" style="flex:1.3">
+          <input type="number" id="ly" min="1899" max="2100" aria-label="農曆年" style="flex:1.3">
           <select id="lm" aria-label="農曆月" style="flex:1.2"></select>
           <select id="ld" aria-label="農曆日" style="flex:1.1"></select>
         </div>
@@ -87,7 +87,7 @@
         </select>
       </div>
     </div>
-    <p class="help"><b>夏令時間</b>（日光節約時間）：台灣 1945–1979 年間多個年份、中國大陸 1986–1991 年曾把鐘錶撥快一小時。自動模式依瀏覽器內建的時區歷史資料換回標準時，換算結果列在下方；手上的時間若已經換算成現行標準時，才改成手動；日治時期（UTC+9）等當時的標準時也屬於要換算的情況，請維持自動。<b>真太陽時</b>：以出生地經度和均時差換算太陽時。教材範例盤未校正，用不用請在看盤紀錄上標註。<b>子時</b>：23:00–24:00 出生的人，換日換柱算次日，夜子時不換日算當日；教材採主流的換日換柱。</p>
+    <p class="help"><b>夏令時間</b>（日光節約時間）：台灣 1945–1979 年間多個年份、中國大陸 1986–1991 年曾把鐘錶撥快一小時。自動模式依瀏覽器內建的時區歷史資料，把當時鐘錶上的時間換回現行標準時（夏令時間減一小時；日治時期的 UTC+9 也換回 UTC+8），換算結果列在下方。出生證明、戶籍上的時間請維持自動；只有手上的時間已經是換算過的，才改成手動。<b>真太陽時</b>：以出生地經度和均時差換算太陽時。教材範例盤未校正，用不用請在看盤紀錄上標註。<b>子時</b>：23:00–24:00 出生的人，換日換柱算次日，夜子時不換日算當日；教材採主流的換日換柱。<b>範圍</b>：公曆 1900 到 2100 年。</p>
     <div id="err" class="err" role="alert" hidden></div>
     <div class="actions">
       <button type="submit" class="btn primary">排盤</button>
@@ -111,7 +111,7 @@
     <div class="card">
       <h2>四柱 <small id="bz-sub"></small></h2>
       <div class="scroll-x"><table class="pillars" id="pillars"></table></div>
-      <p class="note">藏干第一個（粗體）是本氣。星運是日主在各支的十二長生，自坐是各柱天干坐本柱地支；陰干採逆行，判根仍以藏干為準。納音、空亡屬「參考」，介紹但不作主要判斷依據。</p>
+      <p class="note">藏干第一個（粗體）是本氣。星運是日主在各支的十二長生，自坐是各柱天干坐本柱地支；陰干採逆行，土的長生隨火（火土同宮），判根仍以藏干為準。納音、空亡屬「參考」，介紹但不作主要判斷依據。</p>
     </div>
     <div class="two">
       <div class="card">
@@ -175,7 +175,7 @@
   </footer>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/iztro@2.6.3/dist/iztro.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.js" integrity="sha384-CkiJVUh8zHLFNZYeiszeRw7KEWYDIf1yIZ+jVnZt+omUzQLv2ilCE94w1VItn8uH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/iztro@2.6.3/dist/iztro.min.js" integrity="sha384-68j1Em3n9I6syaZHoRRauUwjRWjkp5GNy+M4J0xg3hLGd7H1nAB2TfH3/DLxjgsr" crossorigin="anonymous"></script>
 <script>
 /*@APP@*/</script>

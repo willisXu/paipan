@@ -14,11 +14,10 @@ function relList(list, emptyText) {
 
 // 今天走到哪一步大運：以交運日為準，不是以年。還沒起運回傳 -1
 export const currentDayun = bz => bz.dayun.reduce((cur, d, i) => (d.startDate <= today ? i : cur), -1);
-/* 某步運要列出的流年：自己的十年，加上交入下一運的那一年——交運日之前那一年仍屬本運。
-   一、二月間已交運但還沒過立春時，「今年」是上一運的最後一年，這時把它補在最前面。 */
-export function yearsOf(bz, i) {
-  const prev = i > 0 && bz.dayun[i - 1].years[9], next = bz.dayun[i + 1] && bz.dayun[i + 1].years[0];
-  return [...(prev && prev.year === bzYear && i === currentDayun(bz) ? [prev] : []), ...bz.dayun[i].years, ...(next ? [next] : [])];
+// 點到（或預設選到）第 i 步運時先看哪一年：今天所在的那一步看今年，其他的看這步運習慣上標示的起始年
+export function defaultYear(bz, i) {
+  const D = bz.dayun[i];
+  return i === currentDayun(bz) && D.years.some(n => n.year === bzYear) ? bzYear : D.startYear;
 }
 
 export function renderBazi() {
@@ -29,7 +28,7 @@ export function renderBazi() {
   $('#rels').innerHTML = relList(bz.relations, '原局沒有合、沖、刑、害。');
   const y = bz.yun;
   $('#yunhead').innerHTML = `<span><b>${yinyang(bz.P[0].gan)}${bz.male ? '男' : '女'}${bz.forward ? '順行' : '逆行'}</b></span>
-      <span>出生後 <b>${y.y} 年 ${y.m} 個月 ${y.d} 天</b>起運，約 ${y.date} 交運</span>`;
+      <span>出生後 <b>${y.y} 年 ${y.m} 個月 ${y.d} 天</b>起運，約 ${y.date} 交運${today < y.date ? '（今天還沒起運）' : ''}</span>`;
   renderDayun();
   renderShensha(bz);
 }
@@ -62,11 +61,14 @@ function renderStrength(st) {
       <li><span class="q">得勢</span><span class="v">天干印星：${st.helpers.yin.join('、') || '無'}；天干比劫：${st.helpers.bi.join('、') || '無'}</span></li>`;
 }
 
-function yunBtn({ top, gz, bottom, y, a, pressed, now, data, label }) {
-  return `<button type="button" class="yun" aria-pressed="${pressed}" aria-label="${label}" ${data}>
+/* 一步大運或一個流年的按鈕。不另外給 aria-label：讀屏唸的就是按鈕上看得到的字（今、十神、干支、年、歲），
+   畫面上有的資訊不會少，語音操作也能照著看到的字點（WCAG 2.5.3）。
+   edge：交運的那一年。這一年只有交運日的一側屬於這步運，畫面用虛線框標出；hint 是同一件事給讀屏的文字版 */
+function yunBtn({ top, gz, bottom, y, a, pressed, now, data, edge = false, hint = '' }) {
+  return `<button type="button" class="yun${edge ? ' edge' : ''}" aria-pressed="${pressed}" ${data}>
       ${now ? '<span class="now">今</span>' : ''}
       <span class="g">${top}</span><span class="c ${wxc(gz[0])}">${gz[0]}</span><span class="c ${wxc(gz[1])}">${gz[1]}</span><span class="g">${bottom}</span>
-      <span class="y">${y}</span><span class="a">${a}</span></button>`;
+      <span class="y">${y}</span><span class="a">${a}</span>${hint ? `<span class="vh">${hint}</span>` : ''}</button>`;
 }
 
 function renderDayun() {
@@ -74,14 +76,15 @@ function renderDayun() {
   $('#dayun').innerHTML = bz.dayun.map((d, i) => yunBtn({
     top: d.ganGod, gz: d.gz, bottom: d.zhiGod, y: `${d.startYear}–${String(d.endYear).slice(-2)}`, a: `${d.startAge}–${d.endAge} 歲`,
     pressed: i === S.dy, now: i === cur, data: `data-dy="${i}"`,
-    label: `${d.gz}運，${d.startYear} 到 ${d.endYear} 年，${d.startAge} 到 ${d.endAge} 歲`,
   })).join('');
-  const D = bz.dayun[S.dy], years = yearsOf(bz, S.dy), nextD = bz.dayun[S.dy + 1];
-  if (!years.some(n => n.year === S.ln)) S.ln = D.years[0].year;
-  $('#ln-title').innerHTML = `${D.gz}運的流年 <small>約 ${D.startDate} 交入${nextD ? `，${nextD.startDate} 交出；最後一格 ${nextD.startYear} 年在交運日之前仍屬本運` : ''}</small>`;
-  $('#liunian').innerHTML = years.map(n => yunBtn({
-    top: n.ganGod, gz: n.gz, bottom: n.zhiGod, y: n.year, a: `${n.age} 歲`,
-    pressed: n.year === S.ln, now: n.year === bzYear, data: `data-ln="${n.year}"`, label: `${n.year} ${n.gz}年，${n.age} 歲`,
+  // 大運在交運日換、流年在立春換，所以頭尾兩個流年各只有一段屬於這步運（引擎的 years 就是這樣列的）
+  const D = bz.dayun[S.dy], years = D.years, last = years.length - 1;
+  if (!years.some(n => n.year === S.ln)) S.ln = defaultYear(bz, S.dy);
+  $('#ln-title').innerHTML = `${D.gz}運的流年 <small>約 ${D.startDate} 交入、${D.endDate} 交出。虛線框是交運的那一年：頭一年在交入之後、最後一年在交出之前，才屬於這步運</small>`;
+  $('#liunian').innerHTML = years.map((n, k) => yunBtn({
+    top: n.ganGod, gz: n.gz, bottom: n.zhiGod, y: n.year, a: `${n.age} 歲`, edge: k === 0 || k === last,
+    pressed: n.year === S.ln, now: n.year === bzYear, data: `data-ln="${n.year}"`,
+    hint: k === 0 ? `約 ${D.startDate} 交入這步運` : k === last ? `約 ${D.endDate} 交出這步運` : '',
   })).join('');
   const N = years.find(n => n.year === S.ln);
   const P = bz.P.concat([{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }, { pos: '歲', gan: N.gz[0], zhi: N.gz[1], natal: false }]);
@@ -103,7 +106,7 @@ export function initBaziView() {
   $('#dayun').addEventListener('click', e => {
     const b = e.target.closest('[data-dy]'); if (!b || !S.bz) return;
     S.dy = Number(b.dataset.dy);
-    S.ln = S.dy === currentDayun(S.bz) && yearsOf(S.bz, S.dy).some(n => n.year === bzYear) ? bzYear : S.bz.dayun[S.dy].years[0].year;
+    S.ln = defaultYear(S.bz, S.dy);
     renderDayun(); refocus(`[data-dy="${S.dy}"]`);
   });
   $('#liunian').addEventListener('click', e => {

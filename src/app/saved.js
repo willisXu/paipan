@@ -1,14 +1,21 @@
 /* 存起來的盤（只存在這個瀏覽器的 localStorage）：讀回時的檢查、已存清單、載入、刪除、儲存。 */
 import { pad, resolveTime } from '../engine/index.js';
 import { $, esc, showError, toast } from './dom.js';
+import { S } from './state.js';
 import { PLACE } from './places.js';
-import { readForm, writeForm } from './form.js';
+import { writeForm } from './form.js';
 import { run } from './run.js';
 
 const KEY = 'paipan-saved-v1';
 const num = (v, lo, hi, int) => { const n = Number(v); return v !== null && v !== '' && Number.isFinite(n) && n >= lo && n <= hi && (!int || Number.isInteger(n)) ? n : null; };
-// 讀回來的資料一律重新檢查，格式不對的整筆丟掉
+/* 讀回來的資料一律重新檢查：只留認得的欄位，格式不對、或引擎排不出來（日期不存在、超出範圍）的整筆不要。
+   回傳整理好的一筆，不要的回傳 null；任何例外也當作不要，一筆壞資料不可以連累其他筆。 */
 function clean(s) {
+  try {
+    return check(s);
+  } catch (e) { return null; }
+}
+function check(s) {
   if (!s || typeof s !== 'object') return null;
   const o = {
     name: String(s.name || '').slice(0, 20), gender: s.gender === '女' ? '女' : '男', calendar: s.calendar === 'lunar' ? 'lunar' : 'solar',
@@ -16,12 +23,13 @@ function clean(s) {
     clock: ['auto', 'std', 'dst'].includes(s.clock) ? s.clock : 'auto', useTST: s.useTST === true, ziRule: s.ziRule === 'same' ? 'same' : 'next',
   };
   if (o.place === 'custom') Object.assign(o, { lon: num(s.lon, -180, 180), tz: num(s.tz, -12, 14) });
-  if (o.calendar === 'lunar') Object.assign(o, { ly: num(s.ly, 1900, 2100, true), lm: num(s.lm, 1, 12, true), ld: num(s.ld, 1, 30, true), leap: s.leap === true });
-  else Object.assign(o, { y: num(s.y, 1900, 2100, true), m: num(s.m, 1, 12, true), d: num(s.d, 1, 31, true) });
-  return Object.values(o).includes(null) ? null : o;
+  if (o.calendar === 'lunar') Object.assign(o, { ly: num(s.ly, 1, 9999, true), lm: num(s.lm, 1, 12, true), ld: num(s.ld, 1, 30, true), leap: s.leap === true });
+  else Object.assign(o, { y: num(s.y, 1, 9999, true), m: num(s.m, 1, 12, true), d: num(s.d, 1, 31, true) });
+  if (Object.values(o).includes(null)) return null;
+  resolveTime({ ...o, ...PLACE.get(o.place) }); // 日期存不存在、年份在不在範圍內，以引擎為準；不行就丟出例外
+  return o;
 }
-// 一筆壞資料只丟那一筆，不連累其他筆（否則清單看起來是空的，再按儲存就把其他筆蓋掉）
-const loadSaved = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v.map(s => { try { return clean(s); } catch (e) { return null; } }).filter(Boolean) : []; } catch (e) { return []; } };
+const loadSaved = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v.map(clean).filter(Boolean) : []; } catch (e) { return []; } };
 const storeSaved = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); return true; } catch (e) { return false; } };
 const labelOf = s => `${s.name || '未命名'} · ${s.calendar === 'lunar' ? `農曆 ${s.ly}/${s.leap ? '閏' : ''}${s.lm}/${s.ld}` : `${s.y}/${s.m}/${s.d}`} ${pad(s.h)}:${pad(s.mi)}`;
 export function renderSaved() {
@@ -37,8 +45,8 @@ export function initSaved() {
     if (d) { list.splice(Number(d.dataset.del), 1); storeSaved(list); renderSaved(); }
   });
   $('#save').addEventListener('click', () => {
-    let inp;
-    try { const full = readForm(); resolveTime(full); inp = clean(full); } catch (e) { showError(e.message); return; }
+    if (!run()) return; // 先照目前的表單排一次：排不出來的生辰不存，錯誤訊息由 run() 顯示
+    const inp = clean(S.inp);
     if (!inp) { showError('這份生辰資料不完整，沒有儲存。'); return; }
     const same = JSON.stringify(inp);
     const list = loadSaved().filter(s => JSON.stringify(s) !== same);

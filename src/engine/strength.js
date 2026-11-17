@@ -17,7 +17,6 @@ import { WX, CANG, ganWxI, zhiWxI, tenGod, seasonOf, wangXiang } from './ganzhi.
  *   yin 印星、bi 比劫，每個寫成「時干己」這樣
  */
 
-/* ---------- 旺衰觀察（只列事實，不給結論） ---------- */
 /**
  * @param {import('./ganzhi.js').Pillar[]} P 原局四柱，順序必須是年、月、日、時
  * @returns {StrengthFacts}

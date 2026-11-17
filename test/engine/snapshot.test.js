@@ -51,7 +51,7 @@ function randomInput() {
 }
 const attempt = fn => { try { return fn(); } catch (e) { return { error: e.message, user: e.user === true }; } };
 const chartOf = inp => attempt(() => { const rt = PP.resolveTime(inp); return { rt, bz: PP.bazi(inp, rt) }; });
-const ziweiOf = inp => attempt(() => { const zw = PP.ziwei(inp, PP.resolveTime(inp)); return { rolled: zw.rolled, dateUsed: zw.dateUsed, chart: zw.chart }; });
+const ziweiOf = inp => attempt(() => { const zw = PP.ziwei(inp, PP.resolveTime(inp)); return { rolled: zw.rolled, dateUsed: zw.dateUsed, lunarText: zw.lunarText, chart: zw.chart }; });
 
 const { GAN, ZHI } = PP;
 const JIAZI = Array.from({ length: 60 }, (_, k) => GAN[k % 10] + ZHI[k % 12]);
@@ -74,7 +74,8 @@ function compute() {
   T.seasonOf = hash(ZHI.map(PP.seasonOf));
   T.wangXiang = hash(range(0, 4).map(e => range(0, 4).map(s => PP.wangXiang(e, s))));
   T.equationOfTime = hash(range(0, 730).map(k => PP.equationOfTime(PP.fromMs(Date.UTC(2023, 0, 1, 0, 0) + k * 12 * 3600e3))));
-  T.zoneOffset = hash([...new Set(PLACES.map(p => p[2]))].map(zone => range(0, 600).map(k => PP.zoneOffset(zone, Date.UTC(1900, 0, 1, 3, 30) + k * 122.37 * 864e5))));
+  // 鐘面時間取整到分鐘（實際輸入只到分）：帶小數的毫秒會讓偏移算出浮點雜訊，那不是引擎的行為
+  T.zoneOffset = hash([...new Set(PLACES.map(p => p[2]))].map(zone => range(0, 600).map(k => PP.zoneOffset(zone, Math.round((Date.UTC(1900, 0, 1, 3, 30) + k * 122.37 * 864e5) / 6e4) * 6e4))));
   T.fromMs = hash(range(0, 400).map(k => PP.fromMs(Date.UTC(1890, 0, 1) + k * 191.3 * 864e5)));
   T.toMs = hash(range(0, 400).map(k => PP.toMs({ y: 1890 + k % 220, m: 1 + k % 12, d: 1 + k % 28, h: k % 24, mi: k % 60 })));
   T.fmt = hash(range(0, 400).map(k => PP.fmt({ y: 1890 + k % 220, m: 1 + k % 12, d: 1 + k % 28, h: k % 24, mi: k % 60 })));
@@ -90,6 +91,15 @@ function compute() {
     { calendar: 'lunar', ly: 1984, lm: 5, ld: 3, leap: true }, { calendar: 'lunar', ly: 1984, lm: 10, ld: 30, leap: true }, { calendar: 'lunar', ly: 2023, lm: 2, ld: 30, leap: true }, { calendar: 'lunar', ly: 50, lm: 1, ld: 1, leap: false },
     { calendar: 'lunar', ly: NaN, lm: 1, ld: 1, leap: false }, { calendar: 'lunar', ly: 1984, lm: 13, ld: 1, leap: false }, { calendar: 'lunar', ly: 1984, lm: 1, ld: 31, leap: false },
     { zone: 'Not/AZone' }, { zone: 'Not/AZone', clock: 'std' },
+    // 可排的範圍（公曆 1900 到 2100 年）兩端，公曆與農曆各一組
+    { y: 1899, m: 12, d: 31 }, { y: 1900, m: 1, d: 1 }, { y: 2100, m: 12, d: 31 }, { y: 2101, m: 1, d: 1 },
+    { calendar: 'lunar', ly: 1899, lm: 11, ld: 29, leap: false }, { calendar: 'lunar', ly: 1899, lm: 12, ld: 1, leap: false }, { calendar: 'lunar', ly: 2100, lm: 11, ld: 1, leap: false }, { calendar: 'lunar', ly: 2100, lm: 12, ld: 10, leap: false },
+    { calendar: 'lunar', ly: 1898, lm: 12, ld: 1, leap: false }, { calendar: 'lunar', ly: 2101, lm: 1, ld: 1, leap: false },
+    // 農曆年月日的型別與正負號、性別
+    { calendar: 'lunar', ly: 1984, lm: -10, ld: 3, leap: false }, { calendar: 'lunar', ly: 1984, lm: '10', ld: 3, leap: true }, { calendar: 'lunar', ly: 1984, lm: 10, ld: '3', leap: false }, { calendar: 'lunar', ly: 1984, lm: 10, ld: 3.5, leap: false },
+    { gender: 'male' }, { gender: undefined },
+    // 重複與不存在的鐘面時間（台灣 1975 年夏令時間的結束與開始）
+    { y: 1975, m: 9, d: 30, h: 23, mi: 30 }, { y: 1975, m: 4, d: 1, h: 0, mi: 30 },
   ].map(o => chartOf({ ...base, ...o })));
 
   // 任意六柱（四柱加運、歲）與任意四柱：關係、神煞、旺衰、五行統計

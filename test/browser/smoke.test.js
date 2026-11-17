@@ -69,7 +69,7 @@ const noOverflow = page => page.evaluate(() => document.documentElement.scrollWi
     await page.locator('#nm').click(); await page.keyboard.type('乙');
     await page.locator('#dayun [data-dy="1"]').click();
     await page.waitForTimeout(50);
-    ok((await page.locator('#dayun .yun[aria-pressed=true]').getAttribute('aria-label')).startsWith('丁丑運') && (await text(page, '#summary .nm')) === '王小明甲乙', '改完姓名直接點大運：第一下就生效');
+    ok((await text(page, '#dayun .yun[aria-pressed=true]')).replace(/\s+/g, '').includes('丁丑') && (await text(page, '#summary .nm')) === '王小明甲乙', '改完姓名直接點大運：第一下就生效');
     ok(errors.length === 0, '桌機無錯誤：' + errors.join(' | '));
     await ctx.close();
     const deep = await open(browser, {}, '#ziwei');
@@ -114,7 +114,7 @@ const noOverflow = page => page.evaluate(() => document.documentElement.scrollWi
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.screenshot({ path: path.join(shotDir, '9-lunar-desktop.png') });
     await page.locator('#lm').selectOption('5');
-    ok(await page.locator('#err').isVisible() && (await text(page, '#err')).includes('沒有閏5月') && await page.locator('main.stale').count() === 1 && await page.locator('#p-bazi').evaluate(el => el.inert), '不存在的閏月報錯，上一次的盤調淡且不可操作');
+    ok(await page.locator('#err').isVisible() && (await text(page, '#err')).includes('沒有閏 5 月') && await page.locator('main.stale').count() === 1 && await page.locator('#p-bazi').evaluate(el => el.inert), '不存在的閏月報錯，上一次的盤調淡且不可操作');
     await page.screenshot({ path: path.join(shotDir, '8-error-stale.png') });
     await page.locator('#save').click();
     ok(await page.locator('#saved .chip').count() === 0 && await page.locator('#err').isVisible(), '排不出來的生辰不能儲存');
@@ -232,6 +232,13 @@ const noOverflow = page => page.evaluate(() => document.documentElement.scrollWi
   {
     const { ctx, page } = await open(browser, {}, '', { libs: false });
     ok(await page.locator('#err').isVisible() && (await text(page, '#err')).includes('函式庫沒有載入'), 'CDN 失敗時給出明確訊息');
+    // 這時按「排盤」不可以讓瀏覽器把表單真的送出去（會帶著欄位內容重新載入頁面）
+    const url = page.url();
+    await page.locator('#nm').fill('王小明');
+    await page.locator('#f button[type=submit]').click();
+    await page.locator('#time').press('Enter');
+    await page.waitForTimeout(300);
+    ok(page.url() === url && await page.locator('#nm').inputValue() === '王小明' && (await text(page, '#err')).includes('函式庫沒有載入'), '函式庫沒載入時按「排盤」或 Enter：頁面不重新載入，網址不變，訊息還在');
     await ctx.close();
   }
 

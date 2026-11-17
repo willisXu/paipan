@@ -5,10 +5,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-// Playwright 裝在專案外（靠 NODE_PATH 找到），import 不會去那裡找，所以用 require
+// Playwright 列在 devDependencies（版本寫死）。用 require 而不是 import：沒裝的時候才印得出下面這句說明，而不是一串模組載入錯誤
 const require = createRequire(import.meta.url);
 let chromium;
-try { ({ chromium } = require('playwright')); } catch (e) { console.error('找不到 Playwright。這支測試需要另外安裝 playwright 與 Chromium（不在 package.json 的相依套件裡）。'); process.exit(2); }
+try { ({ chromium } = require('playwright')); } catch (e) { console.error('找不到 Playwright。請先執行 npm install；瀏覽器本體另外用 npx playwright install --only-shell chromium 安裝。'); process.exit(2); }
 
 export const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const deps = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies;
@@ -48,7 +48,8 @@ export async function openPage(browser, harness, { context = {}, hash = '', init
   await page.route('**/*', route => {
     const url = route.request().url();
     const lib = libs && Object.keys(LIBS).find(k => url.includes(k));
-    if (lib) return route.fulfill({ path: path.join(root, LIBS[lib]), contentType: 'application/javascript' });
+    // 頁面的 <script> 帶完整性雜湊與 crossorigin，所以回應要有 CORS 標頭，瀏覽器才會核對並執行（CDN 也是這樣回的）
+    if (lib) return route.fulfill({ path: path.join(root, LIBS[lib]), contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } });
     return url.startsWith('file:') ? route.continue() : route.abort();
   });
   for (const fn of init) await page.addInitScript(fn);
@@ -60,5 +61,8 @@ export async function openPage(browser, harness, { context = {}, hash = '', init
 // 常用的頁面操作。setVal 填完再補一個 change，文字、日期這類欄位才會立刻觸發重排
 export const text = (page, sel) => page.locator(sel).innerText();
 export const setVal = async (page, sel, v) => { await page.locator(sel).fill(v); await page.locator(sel).dispatchEvent('change'); };
+/* 按鈕的無障礙名稱：瀏覽器實際算出來、讀屏會唸的那一串（不是我們寫在屬性裡的字）。去掉空白，免得受排版影響。
+   loc 可以是按鈕本身，也可以是裝著一排按鈕的容器；回傳陣列，一個按鈕一個名稱 */
+export const buttonNames = async loc => [...(await loc.ariaSnapshot()).matchAll(/^\s*- button "((?:[^"\\]|\\.)*)"/gm)].map(m => m[1].replace(/\s+/g, ''));
 // 給 openPage 的 init 用：讓「複製文字盤」走選取文字的路，才讀得到內容
 export const blockClipboard = () => { Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.reject(new Error('blocked')) }, configurable: true }); };

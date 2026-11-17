@@ -1,5 +1,5 @@
 /* 瀏覽器測試（表單與存檔）：node test/browser/form.test.js。先跑 node scripts/build.js。
-   送出表單、輸入檢查的訊息、公曆農曆互轉、存檔、複製文字盤。
+   送出表單、輸入檢查的訊息、年份範圍、公曆農曆互轉、存檔、複製文字盤。
    冒煙測試（smoke.test.js）走的是主要流程；這一支補使用者碰得到、但主要流程走不到的分支。 */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -69,7 +69,7 @@ const STALE_NOTE = '下方變淡的是上一次排出的盤，修正後才會更
     await setVal(page, '#date', '1899-12-31');
     const tooEarly = await errText(page);
     await setVal(page, '#date', '2101-01-01');
-    ok(tooEarly === '出生年份請填 1900 到 2100 年之間。' + STALE_NOTE && await errText(page) === tooEarly, '公曆年份早於 1900、晚於 2100');
+    ok(tooEarly === '出生日期要在公曆 1900 到 2100 年之間。' + STALE_NOTE && await errText(page) === tooEarly, '公曆年份早於 1900、晚於 2100');
     await setVal(page, '#date', '1900-01-01');
     const first = await pillars(page), firstErr = await errText(page);
     await setVal(page, '#date', '2100-12-31');
@@ -77,9 +77,11 @@ const STALE_NOTE = '下方變淡的是上一次排出的盤，修正後才會更
     ok(firstErr === '' && first.startsWith('己亥 ') && first.split(' ')[2] === '甲戌' && await errText(page) === '' && (await pillars(page)).startsWith('庚申 '), '公曆 1900-01-01 與 2100-12-31 這兩個邊界可以排');
     await setVal(page, '#date', '1984-11-20');
     await page.locator('label:has(#c-l)').click();
+    // 這時農曆欄是十月廿八。範圍看換成公曆之後落在哪一年：農曆 1899 年十月廿八是公曆 1899-11-30
     const lunarYear = [];
     for (const v of ['1899', '2101', '1984.5', '']) { await setVal(page, '#ly', v); lunarYear.push(await errText(page)); }
-    ok(lunarYear.every(e => e === '農曆年份請填 1900 到 2100 之間的整數。' + STALE_NOTE), '農曆年份超出範圍、不是整數、沒填：' + JSON.stringify([...new Set(lunarYear)]));
+    ok(same(lunarYear, ['農曆這一天是公曆 1899 年 11 月 30 日，超出可排的範圍（公曆 1900 到 2100 年）。', '農曆 2101 年超出可排的範圍（公曆 1900 到 2100 年）。', '請填農曆年份（整數，例如 1984）。', '請填農曆年份（整數，例如 1984）。'].map(e => e + STALE_NOTE)),
+      '農曆年份超出範圍、不是整數、沒填：' + JSON.stringify(lunarYear));
     await setVal(page, '#ly', '1900');
     const lunarFirst = await errText(page);
     await setVal(page, '#ly', '2100');
@@ -89,6 +91,49 @@ const STALE_NOTE = '下方變淡的是上一次排出的盤，修正後才會更
     await page.locator('#ld').selectOption('29');
     ok(await errText(page) === '' && (await text(page, '#summary')).includes('五月廿九'), '改成廿九就排得出來');
     ok(errors.length === 0, '輸入檢查無錯誤：' + errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* 可排的範圍是公曆 1900 到 2100 年。農曆 1899 年十二月是公曆 1900 年 1 月，農曆 2100 年底已是公曆 2101 年：
+     同一天不管用哪一種曆輸入，都要一樣排得出來、或一樣排不出來 */
+  section('年份範圍的兩端：公曆和農曆說法一致');
+  {
+    const { ctx, page, errors } = await open(browser);
+    const lunarFields = () => page.evaluate(() => ['ly', 'lm', 'ld'].map(id => document.getElementById(id).value).join('/'));
+    await setVal(page, '#date', '1900-01-15');
+    const solarEarly = await pillars(page);
+    await page.locator('label:has(#c-l)').click();
+    ok(solarEarly === '己亥 丁丑 戊子 己未' && await lunarFields() === '1899/12/15' && await errText(page) === '' && await pillars(page) === solarEarly && !(await isStale(page)), '公曆 1900-01-15 切成農曆是 1899 年十二月十五：照樣排得出來，盤不變');
+    await setVal(page, '#ly', '2100'); await page.locator('#lm').selectOption('12'); await page.locator('#ld').selectOption('10');
+    const lunarLate = await errText(page);
+    await page.locator('label:has(#c-s)').click();
+    ok(lunarLate === '農曆這一天是公曆 2101 年 1 月 9 日，超出可排的範圍（公曆 1900 到 2100 年）。' + STALE_NOTE && await page.locator('#date').inputValue() === '2101-01-09' && await errText(page) === '出生日期要在公曆 1900 到 2100 年之間。' + STALE_NOTE,
+      '農曆 2100 年十二月初十是公曆 2101-01-09：兩種曆都說超出範圍');
+    await page.locator('label:has(#c-l)').click();
+    await page.locator('#lm').selectOption('11'); await page.locator('#ld').selectOption('1');
+    ok(await errText(page) === '' && (await text(page, '#summary')).includes('2100-12-01 14:00'), '農曆 2100 年十一月初一（公曆 2100-12-01）還在範圍內');
+    ok(errors.length === 0, '年份範圍無錯誤：' + errors.join(' | '));
+    await ctx.close();
+  }
+
+  // 同一天從公曆切成農曆，排出來的是同一張盤：已經選好的大運、流年、宮位不該被重設
+  section('切換公曆、農曆不會重設選到的運限與宮位');
+  {
+    const { ctx, page, errors } = await open(browser);
+    const picked = () => page.evaluate(() => [...document.querySelectorAll('#dayun [aria-pressed=true], #liunian [aria-pressed=true], #decs [aria-pressed=true], #yrs [aria-pressed=true], #zw .pn[aria-pressed=true]')].map(el => el.dataset.dy || el.dataset.ln || el.dataset.dec || el.dataset.yr || el.textContent).join('|'));
+    await page.locator('#dayun [data-dy="2"]').click();
+    await page.locator('#liunian [data-ln="2014"]').click();
+    await page.locator('#t-ziwei').click();
+    await page.locator('#decs .chip2').nth(3).click();
+    await page.locator('#zw .cell[data-pal="7"]').click();
+    const before = await picked();
+    await page.locator('label:has(#c-l)').click();
+    const asLunar = await picked();
+    await page.locator('label:has(#c-s)').click();
+    ok(before.startsWith('2|2014|') && asLunar === before && await picked() === before, `切成農曆再切回公曆，選到的大運、流年、大限、宮位都還在：${before}`);
+    await setVal(page, '#time', '16:00');
+    ok(await picked() !== before && (await picked()).startsWith('3|2026|'), '換了時辰是另一張盤：回到今天所在的大運（己卯運）與今年');
+    ok(errors.length === 0, '切換曆法無錯誤：' + errors.join(' | '));
     await ctx.close();
   }
 
@@ -114,7 +159,7 @@ const STALE_NOTE = '下方變淡的是上一次排出的盤，修正後才會更
     await setVal(page, '#ly', '1984'); await page.locator('#lm').selectOption('5'); await page.locator('#ld').selectOption('3'); await page.locator('#leap').check();
     const rejected = await errText(page);
     await page.locator('label:has(#c-s)').click();
-    ok(rejected.includes('沒有閏5月') && await page.locator('#date').inputValue() === '2023-03-21' && await errText(page) === '' && (await text(page, '#summary')).includes('2023-03-21 14:00'), '農曆日期不存在（1984 年沒有閏五月）時切回公曆：不換算，公曆欄維持原值並照它排盤');
+    ok(rejected.includes('沒有閏 5 月') && await page.locator('#date').inputValue() === '2023-03-21' && await errText(page) === '' && (await text(page, '#summary')).includes('2023-03-21 14:00'), '農曆日期不存在（1984 年沒有閏五月）時切回公曆：不換算，公曆欄維持原值並照它排盤');
     ok(errors.length === 0, '曆法互轉無錯誤：' + errors.join(' | '));
     await ctx.close();
   }
@@ -182,6 +227,33 @@ const STALE_NOTE = '下方變淡的是上一次排出的盤，修正後才會更
     await plain.ctx.close();
   }
 
+  section('存檔：表單有錯時不存、排不出來的存檔不列');
+  {
+    const { ctx, page, errors } = await open(browser, { init: [logToasts] });
+    await page.locator('#save').click();
+    await setVal(page, '#time', '');
+    const before = await errText(page);
+    await page.locator('#save').click();
+    ok(before.endsWith(STALE_NOTE) && await errText(page) === before && await isStale(page) && await page.locator('#saved .chip').count() === 1 && same(await toasts(page), ['已存在這個瀏覽器']),
+      '表單有錯時按「儲存此盤」：不存，錯誤訊息原樣留著（包含「下方變淡的是上一次排出的盤」那一句）');
+    await setVal(page, '#time', '15:00');
+    await page.locator('#save').click();
+    ok(await errText(page) === '' && same(await savedLabels(page), ['未命名 · 1984/11/20 15:00', '未命名 · 1984/11/20 14:00']), '修正後就存得進去，新的一筆排最前面');
+    // 存檔內容被動過手腳：日期不存在、超出範圍的，引擎排不出來，清單上就不列
+    const good = { name: '好的', gender: '男', calendar: 'solar', y: 1990, m: 5, d: 5, h: 5, mi: 5, place: '台北', clock: 'auto', useTST: false, ziRule: 'next' };
+    await page.evaluate(list => localStorage.setItem('paipan-saved-v1', JSON.stringify(list)), [
+      { ...good, name: '二月三十', y: 2001, m: 2, d: 30 }, { ...good, name: '太晚', y: 2101, m: 1, d: 1 }, good,
+      { ...good, name: '農曆太晚', calendar: 'lunar', ly: 2100, lm: 12, ld: 10, leap: false }, { ...good, name: '沒有的閏月', calendar: 'lunar', ly: 1984, lm: 5, ld: 3, leap: true },
+      { ...good, name: '農曆 1899 年底', calendar: 'lunar', ly: 1899, lm: 12, ld: 15, leap: false },
+    ]);
+    await page.reload();
+    ok(same(await savedLabels(page), ['好的 · 1990/5/5 05:05', '農曆 1899 年底 · 農曆 1899/12/15 05:05']), '存檔裡排不出來的生辰（2 月 30 日、超出範圍、沒有的閏月）不列；農曆 1899 年十二月在範圍內，照列：' + JSON.stringify(await savedLabels(page)));
+    await page.locator('#saved [data-load]').nth(1).click();
+    ok(await errText(page) === '' && (await text(page, '#summary')).includes('1900-01-15 05:05'), '載入農曆 1899 年十二月十五的存檔：排得出來（公曆 1900-01-15）');
+    ok(errors.length === 0, '存檔檢查無錯誤：' + errors.join(' | '));
+    await ctx.close();
+  }
+
   section('複製文字盤：剪貼簿可用、被拒絕、不存在');
   {
     // 假的剪貼簿：記下寫進來的文字；把 window.clipboardOk 設成 false 就模擬被瀏覽器拒絕
@@ -212,6 +284,17 @@ const STALE_NOTE = '下方變淡的是上一次排出的盤，修正後才會更
     const bare = await open(browser, { init: [logToasts, noClipboard] });
     await bare.page.locator('#copy').click();
     ok(await bare.page.locator('#copyfallback').isVisible() && await bare.page.locator('#copytext').count() === 1 && (await bare.page.locator('#copytext').inputValue()).startsWith('【八字】教材範例盤') && same(await toasts(bare.page), []), 'navigator.clipboard 不存在：直接走備用文字框');
+    // 備用文字框裡是按下當時那張盤的文字：換了盤、或輸入有錯，就要收起來，不可以留著舊盤的內容
+    await setVal(bare.page, '#date', '1990-05-05');
+    ok(await bare.page.locator('#copyfallback').isHidden() && await pillars(bare.page) === '庚午 庚辰 庚午 癸未', '換了一張盤：備用文字框收起來');
+    await bare.page.locator('#copy').click();
+    ok((await bare.page.locator('#copytext').inputValue()).includes('出生：1990-05-05 14:00'), '再按一次複製：文字框裡是新的盤');
+    await setVal(bare.page, '#time', '');
+    ok(await bare.page.locator('#copyfallback').isHidden() && await isStale(bare.page), '輸入有錯時：備用文字框也收起來（裡面是上一張盤）');
+    await setVal(bare.page, '#time', '14:00');
+    await bare.page.locator('#copy').click();
+    await bare.page.locator('#nm').fill('改名'); await bare.page.locator('#nm').dispatchEvent('change');
+    ok(await bare.page.locator('#copyfallback').isHidden(), '只改姓名也收起來：文字盤第一行有姓名');
     ok(bare.errors.length === 0, '沒有剪貼簿時無錯誤：' + bare.errors.join(' | '));
     await bare.ctx.close();
   }
