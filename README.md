@@ -3,6 +3,8 @@
 單頁排盤工具：同一份生辰排出子平八字與紫微斗數命盤。只排盤，不解盤。
 成品是一個 HTML 檔 `dist/paipan.html`。
 
+線上版：https://willisxu.github.io/paipan/
+
 ## 指令
 
 ```
