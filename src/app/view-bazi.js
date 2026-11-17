@@ -32,6 +32,38 @@ export function defaultYear(bz, i) {
   if (i === currentStep(bz) && D.years.some(n => n.year === bzYear)) return bzYear;
   return i === PRE ? D.years[0].year : D.startYear;
 }
+// 流月的「今」以日為單位：交節當天整天就算新的月
+const isThisMonth = m => m.from <= today && today < m.to;
+
+/**
+ * 選到的那一格運、流年、流月，它們和原局之間的合沖刑害，以及標題用的說明。不碰 DOM、不讀共用狀態。
+ * 八字分頁的關係列和文字盤（命令列 --at 的八字運限）都用它，兩邊寫的是同一件事。
+ * @param {object} bz bazi() 的結果
+ * @param {number} dy 那一格運：-1 是起運前，0 到 9 是十步大運
+ * @param {number} ln 流年的年數，要是那一格運列出的流年之一
+ * @param {number|null} lm 流月：那個流年裡的第幾個節氣月（0 是寅月）；沒選是 null
+ */
+export function yunSel(bz, dy, ln, lm) {
+  const pre = dy === PRE, D = stepOf(bz, dy), N = D.years.find(n => n.year === ln);
+  const months = bzLiuYue(bz, N.year), M = lm === null ? null : months[lm];
+  const P = bz.P.concat(pre ? [] : [{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }], [{ pos: '歲', gan: N.gz[0], zhi: N.gz[1], natal: false }],
+    M ? [{ pos: '流月', gan: M.gz[0], zhi: M.gz[1], natal: false }] : []);
+  return {
+    pre, D, N, months, M, rels: relations(P, true),
+    what: `${pre ? '起運前' : `${D.gz}運`}、${N.year} ${N.gz}年${M ? `、${M.gz}月` : ''}`,
+    scope: M ? (pre ? '只列牽涉流年或流月的關係' : '只列牽涉運、歲或流月的關係') : pre ? '只列牽涉流年的關係' : '只列牽涉運或歲的關係',
+    span: M ? `從 ${M.from} ${M.time} 交${M.jie}起，到 ${M.to} 交${M.k < 11 ? months[M.k + 1].jie : '立春'}為止` : '', // 選了流月：這個月從哪一刻到哪一刻
+    none: `${pre ? '' : '這一運、'}這一年${M ? '、這個月' : ''}和原局沒有合、沖、刑、害。`,
+  };
+}
+
+// 今天走的那一格運、流年、流月，也就是畫面上標「今」的那幾格。命令列 --at 用；今天不在十一格運的範圍內（還沒出生、十步運都走完）時三個都是 null
+export function nowSel(bz) {
+  const dy = currentStep(bz);
+  if (dy === null) return { dy: null, ln: null, lm: null };
+  const ln = defaultYear(bz, dy), lm = bzLiuYue(bz, ln).findIndex(isThisMonth);
+  return { dy, ln, lm: lm < 0 ? null : lm };
+}
 
 export function renderBazi() {
   const { bz } = S;
@@ -109,23 +141,17 @@ function renderDayun() {
     pressed: n.year === S.ln, now: n.year === bzYear, data: `data-ln="${n.year}"`,
     hint: k === last ? (pre ? `約 ${D.endDate} 起運` : `約 ${D.endDate} 交出這步運`) : k === 0 && !pre ? `約 ${D.startDate} 交入這步運` : '',
   })).join('');
-  const N = years.find(n => n.year === S.ln);
   /* 流月：選到的那個流年裡的十二個節氣月（流年以立春換年，十二個月正好鋪滿）。「今」以日為單位：交節當天就算新的月。
      讀屏另外聽得到完整的交節時刻 */
-  const months = bzLiuYue(bz, N.year), M = S.lm === null ? null : months[S.lm];
+  const Y = yunSel(bz, S.dy, S.ln, S.lm), { N, M } = Y;
   $('#lm-title').innerHTML = `${N.year} ${N.gz}年的流月 <small>十二個節氣月，每個月從交節的那一刻起算。點一個月，下面的關係多列一柱流月；再點一次取消</small>`;
-  $('#liuyue').innerHTML = months.map(m => yunBtn({
+  $('#liuyue').innerHTML = Y.months.map(m => yunBtn({
     top: m.ganGod, gz: m.gz, bottom: m.zhiGod, y: m.jie, a: `${monthDay(m.from)} 起`,
-    pressed: m.k === S.lm, now: m.from <= today && today < m.to, data: `data-lm="${m.k}"`, hint: `${m.from} ${m.time} 交${m.jie}`,
+    pressed: m.k === S.lm, now: isThisMonth(m), data: `data-lm="${m.k}"`, hint: `${m.from} ${m.time} 交${m.jie}`,
   })).join('');
-  const sui = { pos: '歲', gan: N.gz[0], zhi: N.gz[1], natal: false };
-  const P = bz.P.concat(pre ? [] : [{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }], [sui], M ? [{ pos: '流月', gan: M.gz[0], zhi: M.gz[1], natal: false }] : []);
   // 選了流月，標題多寫這個月從哪一刻到哪一刻
-  const what = `${pre ? '起運前' : `${D.gz}運`}、${N.year} ${N.gz}年${M ? `、${M.gz}月` : ''}`;
-  const scope = M ? (pre ? '只列牽涉流年或流月的關係' : '只列牽涉運、歲或流月的關係') : pre ? '只列牽涉流年的關係' : '只列牽涉運或歲的關係';
-  const when = M ? `。${M.gz}月從 ${M.from} ${M.time} 交${M.jie}起，到 ${M.to} 交${M.k < 11 ? months[M.k + 1].jie : '立春'}為止` : '';
-  $('#ix-title').innerHTML = `${what} 與原局 <small>${scope}${when}</small>`;
-  $('#ix').innerHTML = relList(relations(P, true), `${pre ? '' : '這一運、'}這一年${M ? '、這個月' : ''}和原局沒有合、沖、刑、害。`);
+  $('#ix-title').innerHTML = `${Y.what} 與原局 <small>${Y.scope}${M ? `。${M.gz}月${Y.span}` : ''}</small>`;
+  $('#ix').innerHTML = relList(Y.rels, Y.none);
   reveal('#dayun'); reveal('#liunian'); reveal('#liuyue');
 }
 

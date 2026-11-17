@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "test": "node test/run.js engine",
     "test:browser": "node scripts/build.js && node test/run.js browser",
-    "check": "eslint . && node scripts/build.js && node test/run.js"
+    "check": "eslint . && node scripts/build.js && node test/run.js",
+    "paipan": "node scripts/paipan.js"
   },
   "dependencies": {
     "iztro": "2.6.3",

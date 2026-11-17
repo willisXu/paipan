@@ -15,10 +15,11 @@ import { pad, yearGZ } from '../engine/index.js';
 export const S = { full: '', key: '', zkey: '', inp: null, rt: null, bz: null, zw: null, c: null, curDec: null, dy: 0, ln: null, lm: null, pal: 0, dec: null, yr: null, mo: null, day: null };
 
 /* 「現在」只在啟動時取一次。today：今天的公曆日期（YYYY-MM-DD），用來判斷大運交到哪一步、今天在哪個流月流日。
-   「今年」在兩套系統的分界不同：bzYear 是八字的今年（流年以立春換年），zwYear 是紫微的今年（以正月初一換年）。 */
+   「今年」在兩套系統的分界不同：bzYear 是八字的今年（流年以立春換年），zwYear 是紫微的今年（以正月初一換年）。
+   頁面不帶參數，取當下；命令列（scripts/paipan.js --at）傳入指定的那一刻，用的是本機時區的年月日時分。 */
 export let today, bzYear, zwYear;
-export function initNow() {
-  const now = new Date(), calYear = now.getFullYear(), nowLunar = Solar.fromDate(now).getLunar();
+export function initNow(now = new Date()) {
+  const calYear = now.getFullYear(), nowLunar = Solar.fromDate(now).getLunar();
   today = `${calYear}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   bzYear = yearGZ(calYear) === nowLunar.getYearInGanZhiExact() ? calYear : calYear - 1;
   zwYear = nowLunar.getYear();

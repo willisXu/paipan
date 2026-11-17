@@ -14,6 +14,7 @@ npm run lint
 npm test               # 引擎測試，不需要瀏覽器，約 2 分鐘
 npm run test:browser   # build 後跑瀏覽器測試，約 3 分鐘
 npm run check          # lint → build → 全部測試。推上去之前跑這個
+node scripts/paipan.js --help                  # 命令列排盤，見下面「命令列」
 ```
 
 `node test/run.js <關鍵字>` 只跑檔名符合的幾支；每支測試也能單獨用 `node` 執行。
@@ -31,6 +32,29 @@ build 的輸出在 `dist/`，不進版本庫：
 開 PR 也會跑同一套檢查，但不發布。
 
 換一個 repo 使用時，要先到 Settings → Pages，把 Source 設成「GitHub Actions」，否則發布那一步會失敗。
+
+## 命令列
+
+`scripts/paipan.js` 印出和頁面「複製文字盤」逐字相同的文字盤，給不開瀏覽器的場合用（Claude 的 Skill 就是呼叫它）。
+只需要兩個曆法函式庫：
+
+```
+npm ci --omit=dev
+node scripts/paipan.js --date 1984-11-20 --time 14:00 --gender 男 --place 台北
+node scripts/paipan.js --lunar 2023-2-20 --leap --time 10:00 --gender 女 --place 香港 --zw-leap current
+node scripts/paipan.js --sample --at 2026-11-18       # 加印那一天的運限
+node scripts/paipan.js --places                       # 可選的出生地
+```
+
+- 輸入檢查、文字盤的寫法、「某一天走到哪一格運限」，都直接用頁面的程式：`form.js` 的 `inputFrom()`、`text-chart.js` 的 `textChart()`、
+  `view-bazi.js` 的 `yunSel()` 與 `nowSel()`、`view-ziwei.js` 的 `pickToday()`。命令列只管把參數組成表單的值、印出結果，不另外寫一份。
+- 不加 `--at`，和頁面上按「複製文字盤」逐字相同。加了 `--at`，紫微運限一段等於頁面按「看今天」之後的文字盤；
+  另外多一段八字運限（大運、流年、流月與原局的關係），寫法和八字分頁的關係列一樣出自 `yunSel()`，頁面的文字盤沒有這一段。
+- `--at` 以整天計（那一天的 23:59，本機時區）：交節、交運、立春當天都算新的，和畫面上「今」的標示一致。
+- 提醒事項的文字和頁面相同，提到的欄位對應的參數：「夏令時間」`--clock`、「真太陽時」`--tst`、「子時立場」`--zi`、
+  「自訂經度與時區」`--lon`、`--tz`、「紫微斗數流派設定」`--zw-hua`、`--zw-year`、`--zw-leap`。提醒裡說的「瀏覽器」的時區資料，在命令列是 Node 內建的。
+- 西經、西半球的時區照寫負數（`--lon -71.06 --tz -5`）。
+- 狀態碼：0 排好了；1 生辰有誤（訊息和頁面上的相同）；2 參數用錯；3 程式本身出錯。
 
 ## 結構
 
@@ -51,18 +75,19 @@ src/app/            頁面程式
   main.js             進入點：檢查函式庫 → 依序初始化 → 畫第一張盤
   run.js              讀表單 → 呼叫引擎 → 更新狀態 → 重畫
   state.js            共用狀態、「今年」與「今天」
-  form.js / saved.js  表單讀寫；存在瀏覽器的盤
+  form.js / saved.js  表單讀寫（inputFrom() 不碰 DOM，命令列共用）；存在瀏覽器的盤
   summary.js / view-bazi.js / view-ziwei.js / text-chart.js   各區塊的繪製
   dom.js / format.js / places.js / tabs.js                    小工具、文字格式、地名表、分頁
 scripts/build.js    用 esbuild 打包 src/app/main.js，連同樣式內嵌進骨架
+scripts/paipan.js   命令列排盤：印出和「複製文字盤」相同的文字盤
 test/run.js         執行器：引擎測試平行跑，瀏覽器測試一次一支
-test/engine/        引擎驗算（獨立公式、對函式庫）、引擎輸出快照、結構檢查
-test/browser/       冒煙、表單、盤面與退路、無障礙、網站版、亂點、畫面對引擎、畫面快照
+test/engine/        引擎驗算（獨立公式、對函式庫）、引擎輸出快照、結構檢查、命令列
+test/browser/       冒煙、表單、盤面與退路、無障礙、網站版、亂點、畫面對引擎、命令列對畫面、畫面快照
 test/helpers/       共用：斷言、亂數、載入函式庫、瀏覽器
 test/snapshots/     兩個快照基準檔
 ```
 
-資料流：表單 → `readForm()` → `resolveTime(inp)` → `bazi(inp, rt)`、`ziwei(inp, rt)` → 各區塊繪製。
+資料流：表單 → `readForm()`（→ `inputFrom()`）→ `resolveTime(inp)` → `bazi(inp, rt)`、`ziwei(inp, rt)` → 各區塊繪製。
 各函式的輸入輸出形狀寫在引擎各檔的 JSDoc。
 
 ## 要守的規矩
@@ -92,6 +117,8 @@ test/snapshots/     兩個快照基準檔
 - 流派設定的選項只在引擎的 `ZW_OPTIONS` 定義一次，第一個是預設值。表單的下拉選單、存檔讀回時的檢查、`format.js` 的短說明都照它；
   加選項時這幾處一起改。存檔裡不認得的值一律當成預設。
 - GitHub Actions 用到的 action 釘在確切的 commit，後面註明版本；升版時兩個一起改。`structure.test.js` 會擋。
+- **命令列不另寫邏輯**。頁面程式裡給命令列共用的函式（`inputFrom`、`textChart`、`yunSel`、`nowSel`、`pickToday`）不碰 DOM、不讀表單；
+  改了它們，`node test/run.js cli` 兩支都要過。命令列另外擋的只有頁面用下拉選單擋掉的值（`--clock`、`--zi`）。
 
 ## 測試
 
@@ -104,6 +131,7 @@ test/snapshots/     兩個快照基準檔
 | 網站版 | `dist/site/` 用本機伺服器送出來能不能排盤、有沒有去連 CDN、函式庫檔被換掉會不會被擋、是不是結構完整的網頁 |
 | 亂點 | 固定種子隨便填、隨便點幾百步，頁面會不會丟例外、盤面會不會壞掉 |
 | 畫面對引擎 | 隨機排幾十張盤、隨機點運限與宮位，畫面上每一格和引擎用同一組輸入算出來的結果逐項比對 |
+| 命令列 | 命令列印的文字盤和頁面「複製文字盤」是否逐字相同（本命盤、看今天、八字運限對畫面上標「今」的那幾格）；參數與錯誤訊息；`--at` 選到的運限另外算一次；換執行環境的時區輸出不變 |
 | 畫面快照 | 畫面有沒有變：30 張盤、327 段 |
 
 快照只抓「變了」，不判斷對錯。重構時快照對不上，要修的是程式。行為是故意改的時候，確認差異符合預期後更新基準檔：

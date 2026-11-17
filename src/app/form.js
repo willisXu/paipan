@@ -54,33 +54,45 @@ export function writeForm(inp) {
   if (zwOptChanges(zwOptions()).length) $('#zopts').open = true; // 載入的盤改過流派設定：把那一區打開，免得沒注意到
 }
 
-// 表單讀成引擎的輸入。欄位沒填、格式不對時拋 userError，訊息直接顯示給使用者；日期存不存在、年份在不在可排的範圍，由引擎檢查
 const bad = userError;
-export function readForm() {
-  const inp = { name: $('#nm').value.trim(), gender: radio('gender'), calendar: radio('cal'), ziRule: $('#zi').value, useTST: $('#tst').value === '1' };
-  const tm = /^(\d{1,2}):(\d{2})/.exec($('#time').value);
+
+/* 表單上每一欄的原始值（字串；另有性別、曆法兩組單選，和閏月有沒有勾）。readForm() 從頁面讀，
+   命令列（scripts/paipan.js）從參數組出同樣形狀的值，兩邊都交給 inputFrom()：擋的是同樣的錯，說的是同樣的話 */
+const FIELDS = { name: '#nm', date: '#date', time: '#time', ly: '#ly', lm: '#lm', ld: '#ld', place: '#place', lon: '#lon', tz: '#tz', clock: '#clock', tst: '#tst', zi: '#zi',
+  ...Object.fromEntries(ZW_FIELDS.map(([, sel, field]) => [field, sel])) };
+export const readForm = () => inputFrom({ ...Object.fromEntries(Object.entries(FIELDS).map(([k, sel]) => [k, $(sel).value])), gender: radio('gender'), calendar: radio('cal'), leap: $('#leap').checked });
+
+/**
+ * 表單的值讀成引擎的輸入（BirthInput，另帶頁面自己用的 name、place）。不碰 DOM。
+ * 欄位沒填、格式不對時拋 userError，訊息直接顯示給使用者；日期存不存在、年份在不在可排的範圍，由引擎檢查。
+ * @param {Record<string, string|boolean>} v 鍵見 FIELDS，值是欄位上的字串；另有 gender（'男'|'女'）、calendar（'solar'|'lunar'）、leap（閏月有沒有勾）
+ * @returns {object}
+ */
+export function inputFrom(v) {
+  const inp = { name: v.name.trim(), gender: v.gender, calendar: v.calendar, ziRule: v.zi, useTST: v.tst === '1' };
+  const tm = /^(\d{1,2}):(\d{2})/.exec(v.time);
   if (!tm || +tm[1] > 23 || +tm[2] > 59) throw bad('請填出生時間（24 小時制，例如 14:00）。沒有出生時間就定不出時柱和紫微命宮。');
   inp.h = +tm[1]; inp.mi = +tm[2];
   if (inp.calendar === 'solar') {
-    const dm = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec($('#date').value);
+    const dm = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v.date);
     if (!dm) throw bad('請填出生日期（公曆，例如 1984-11-20）。');
     inp.y = +dm[1]; inp.m = +dm[2]; inp.d = +dm[3];
   } else {
-    inp.ly = Number($('#ly').value); inp.lm = Number($('#lm').value); inp.ld = Number($('#ld').value); inp.leap = $('#leap').checked;
-    if ($('#ly').value.trim() === '' || !Number.isInteger(inp.ly)) throw bad('請填農曆年份（整數，例如 1984）。');
+    inp.ly = Number(v.ly); inp.lm = Number(v.lm); inp.ld = Number(v.ld); inp.leap = v.leap;
+    if (v.ly.trim() === '' || !Number.isInteger(inp.ly)) throw bad('請填農曆年份（整數，例如 1984）。');
   }
-  inp.place = $('#place').value;
+  inp.place = v.place;
   if (inp.place === 'custom') {
-    inp.lon = Number($('#lon').value); inp.tz = Number($('#tz').value);
-    if ($('#lon').value === '' || !(inp.lon >= -180 && inp.lon <= 180)) throw bad('自訂出生地：請填東經度數，西經填負數。');
-    if ($('#tz').value === '' || !(inp.tz >= -12 && inp.tz <= 14)) throw bad('自訂出生地：請填標準時區，例如台灣填 8。');
-    inp.clock = $('#clock').value === 'dst' ? 'dst' : 'std';
+    inp.lon = Number(v.lon); inp.tz = Number(v.tz);
+    if (v.lon === '' || !(inp.lon >= -180 && inp.lon <= 180)) throw bad('自訂出生地：請填東經度數，西經填負數。');
+    if (v.tz === '' || !(inp.tz >= -12 && inp.tz <= 14)) throw bad('自訂出生地：請填標準時區，例如台灣填 8。');
+    inp.clock = v.clock === 'dst' ? 'dst' : 'std';
   } else {
     if (!PLACE.has(inp.place)) throw bad('請選擇出生地。');
     Object.assign(inp, PLACE.get(inp.place));
-    inp.clock = $('#clock').value;
+    inp.clock = v.clock;
   }
-  for (const [, sel, field] of ZW_FIELDS) inp[field] = $(sel).value;
+  for (const [, , field] of ZW_FIELDS) inp[field] = v[field];
   return inp;
 }
 

@@ -185,8 +185,8 @@ function pickDecade(v) {
   if (zwYear >= y0 && zwYear <= y1) S.yr = zwYear;
   else if (S.dec === CHILD) S.yr = y0; // 童限每年走的宮不同，一定要落在某一年上：先看一歲
 }
-// 一鍵疊到今天：今年所在的大限、今年、今天所在的流月與流日
-function pickToday() {
+// 一鍵疊到今天：今年所在的大限、今年、今天所在的流月與流日。頁面的「看今天」，命令列 --at 也用它（S.curDec 要先算好）
+export function pickToday() {
   if (S.curDec === null) return;
   const mo = zwLiuYue(S.zw, zwYear).find(m => m.from <= today && today <= m.to);
   const day = mo && zwLiuRi(S.zw, mo).find(d => d.date === today);
