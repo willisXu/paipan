@@ -1,4 +1,4 @@
-/* 紫微斗數的本命盤：用通行的安星公式獨立計算，對 iztro 排出的盤（正月初一、立春兩種年界都算）；
+/* 紫微斗數的本命盤：用通行的安星公式獨立計算，對 iztro 排出的盤（正月初一、立春兩種年界都算）；星曜亮度對《紫微斗數全書》；
    流派設定換一種寫法排同一張盤，整張要相同；再查 iztro 的大限、流年查詢。
    執行：node test/engine/ziwei.test.js（約 1 分鐘） */
 import '../helpers/libs.js';
@@ -8,6 +8,7 @@ import { seeded } from '../helpers/random.js';
 import { chartOf, md, zwFace } from '../helpers/charts.js';
 
 const { rnd, pick, rndBirth } = seeded(2026111104);
+const seen = {}; // 星名 → 地支 → 盤上標的亮度；第一段排 2,000 張盤時記下，亮度那一段拿來對書
 
 const pal = br => md(br - 2); // 地支序（子=0）→ 宮位序（寅=0）
 // 不一致的項目只印第一筆，最後統計各項的次數
@@ -96,11 +97,38 @@ section('紫微安星獨立驗算（2,000 組，正月初一為界）：命身�
   const { bad, note } = tally();
   let lateZi = 0;
   for (let k = 0; k < 2000; k++) {
-    const { rt } = verify({ ...rndBirth(), clock: 'std', gender: k % 2 === 1 ? '男' : '女', ziRule: k % 4 < 2 ? 'next' : 'same' }, note);
+    const { rt, zw } = verify({ ...rndBirth(), clock: 'std', gender: k % 2 === 1 ? '男' : '女', ziRule: k % 4 < 2 ? 'next' : 'same' }, note);
     if (rt.lateZi) lateZi++;
+    for (const p of zw.chart.palaces) for (const st of p.majorStars.concat(p.minorStars)) (seen[st.name] ??= {})[p.earthlyBranch] = st.brightness; // 順手記下每顆星在各宮的亮度，下一段用
   }
   eq(bad, {}, '不一致的項目與次數');
   ok(lateZi > 50, `抽樣含晚子時 ${lateZi} 組`);
+}
+
+/* 星曜亮度（廟旺得利平不陷）。頁面用的是 iztro 內建的通行表；這裡拿《紫微斗數全書》卷三各星條下標的廟、旺、地、利、平、陷來對
+   （依網路上流通的抄本，書上只標了部分等級，沒標的不比；「地」就是盤上的「得」）。
+   178 格裡只有兩格不同，都是通行表比書上分得細或用字不同的地方，列在 KNOWN：
+   天機在辰，書上和酉並列為旺，通行表是卯酉旺、辰戌利；文曲在寅，書上和文昌並列為陷，通行表文曲寅宮是平 */
+section('星曜亮度：通行表對《紫微斗數全書》卷三標的廟旺陷（十四主星、昌曲、羊陀、火鈴）');
+{
+  const BOOK = {
+    紫微: { 廟: '丑未午', 旺: '寅申卯酉巳亥', 平: '子' }, 天機: { 廟: '子午', 旺: '辰酉', 陷: '丑未' }, 太陽: { 廟: '卯', 旺: '寅辰巳午', 陷: '子' },
+    武曲: { 廟: '辰戌丑未', 旺: '子午', 平: '巳亥' }, 天同: { 廟: '巳亥', 旺: '子申', 陷: '午' }, 廉貞: { 廟: '寅申', 利: '辰戌丑未', 陷: '巳亥' },
+    天府: { 廟: '子丑未寅辰戌', 旺: '午酉', 得: '卯巳申亥' }, 太陰: { 廟: '亥子丑', 旺: '寅酉戌', 陷: '卯辰巳' }, 貪狼: { 廟: '辰戌丑未', 旺: '子午', 陷: '巳亥' },
+    巨門: { 廟: '寅申卯酉', 旺: '子午巳亥', 陷: '辰戌' }, 天相: { 廟: '子午丑寅申', 得: '辰戌巳亥未', 陷: '卯酉' }, 天梁: { 廟: '子午寅卯辰戌', 旺: '丑未', 得: '酉', 陷: '申巳亥' },
+    七殺: { 廟: '辰戌丑未寅申', 旺: '子午卯酉', 平: '巳亥' }, 破軍: { 廟: '子午', 旺: '辰戌丑未', 陷: '卯酉' },
+    文昌: { 廟: '巳酉丑', 得: '申子辰', 陷: '寅午戌' }, 文曲: { 廟: '巳酉丑', 得: '申子辰', 陷: '寅午戌' }, 擎羊: { 廟: '辰戌丑未', 陷: '子午卯酉' }, 陀羅: { 廟: '辰戌丑未', 陷: '寅申巳亥' },
+    火星: { 廟: '寅午戌', 得: '巳酉丑', 陷: '申子辰' }, 鈴星: { 廟: '寅午戌', 得: '巳酉丑', 陷: '申子辰' },
+  };
+  const KNOWN = ['天機在辰：書上旺、盤上利', '文曲在寅：書上陷、盤上平'];
+  const differ = []; let cells = 0, unseen = 0;
+  for (const [name, levels] of Object.entries(BOOK)) for (const [level, branches] of Object.entries(levels)) for (const z of branches) {
+    cells++;
+    const got = seen[name]?.[z];
+    if (got === undefined) unseen++; else if (got !== level) differ.push(`${name}在${z}：書上${level}、盤上${got}`);
+  }
+  eq([cells, unseen, differ.sort()], [178, 0, KNOWN.slice().sort()], '書上標了等級的 178 格都在抽樣裡出現過；和盤上不同的只有已知的兩格');
+  eq([seen.天梁.巳, seen.天梁.申, seen.天梁.亥, seen.天梁.酉], ['陷', '陷', '陷', '得'], '天梁在巳、申、亥是陷，在酉是得（書上：陷在申巳亥、地在酉）');
 }
 
 /* 比整張盤用的：引擎回報的欄位、盤面（宮位、星曜與亮度、四化、十二神、大限、小限）、幾層運限。

@@ -50,7 +50,7 @@ function relations(pillars, onlyWithExtra = false) {
       const add = (type, text, tag, note = '') => out.push({ type, text, where, dist, tag, note });
       let k = keyOf(GAN_HE, a.gan, b.gan);
       if (k) add('天干五合', `${a.gan}${b.gan}合（化${GAN_HE[k]}）`, '共識', '合而能否化，要看月令與全局，不能見合就說化。');
-      if (pairIn(GAN_CHONG, a.gan, b.gan)) add('天干相沖', `${a.gan}${b.gan}沖`, '共識');
+      if (pairIn(GAN_CHONG, a.gan, b.gan)) add('天干相沖', `${a.gan}${b.gan}沖`, '共識', `天干的沖只有${GAN_CHONG.join('、')}四組：方位相對、同陰陽相剋；戊己居中，不沖。`);
       k = keyOf(ZHI_HE, a.zhi, b.zhi);
       if (k) add('地支六合', `${a.zhi}${b.zhi}合（${ZHI_HE[k]}）`, '共識', k === '午未' ? '午未合化土或化火，古籍說法不一。' : '');
       const chong = pairIn(ZHI_CHONG, a.zhi, b.zhi);

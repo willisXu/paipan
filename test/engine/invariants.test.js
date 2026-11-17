@@ -12,7 +12,7 @@ const { rnd, rndBirth } = seeded(2026111105);
 section('不變量隨機測試（3,000 組：十三種地點、夏令時三種模式、真太陽時、子時兩種立場）');
 {
   const places = [['Asia/Taipei', 121.56, 8], ['Asia/Shanghai', 104.07, 8], ['Asia/Hong_Kong', 114.17, 8], ['Asia/Macau', 113.54, 8], ['Asia/Singapore', 103.82, 8], ['Asia/Kuala_Lumpur', 101.69, 8], ['Asia/Manila', 120.98, 8], ['Asia/Tokyo', 139.69, 9], ['Asia/Seoul', 126.98, 9], [undefined, -73.9, -5], [undefined, 0, 0], [undefined, 179.5, 12], [undefined, 77.2, 5.5]];
-  const bad = { thrown: 0, day: 0, hour: 0, yearMonth: 0, shift: 0, ziwei: 0 }; let late = 0;
+  const bad = { thrown: 0, day: 0, hour: 0, yearMonth: 0, shift: 0, ziwei: 0, lunar: 0 }; let late = 0;
   for (let k = 0; k < 3000; k++) {
     const [zone, lon, tz] = places[rnd(0, places.length - 1)];
     const inp = { ...base, ...rndBirth(), gender: k % 2 ? '男' : '女', lon, tz, zone, clock: zone ? ['auto', 'std', 'dst'][rnd(0, 2)] : ['std', 'dst'][rnd(0, 1)], useTST: k % 3 === 0, ziRule: rnd(0, 1) ? 'next' : 'same' };
@@ -32,11 +32,14 @@ section('不變量隨機測試（3,000 組：十三種地點、夏令時三種�
       if (k % 10 === 0) { // 紫微：起盤日與命宮位置
         const zw = PP.ziwei(inp, rt), used = lz && inp.ziRule === 'next' ? PP.fromMs(PP.toMs(t) + 3600e3) : t;
         const lu = Solar.fromYmd(used.y, used.m, used.d).getLunar(), mon = Math.abs(lu.getMonth()) + (lu.getMonth() < 0 && lu.getDay() > 15 ? 1 : 0);
-        if (zw.chart.palaces.findIndex(p => p.name === '命宮') !== md(mon - 1 - hb) || zw.rolled !== (lz && inp.ziRule === 'next') || zw.chart.rawDates.chineseDate.yearly.join('') !== lu.getYearInGanZhi()) bad.ziwei++;
+        if (zw.chart.palaces.findIndex(p => p.name === '命宮') !== md(mon - 1 - hb) || zw.rolled !== (lz && inp.ziRule === 'next') || zw.yearGZ !== lu.getYearInGanZhi()) bad.ziwei++;
+        // 頁面上有兩個農曆：命主資訊列出自 lunar-javascript，紫微起盤出自 iztro 自帶的曆法。同一天要是同一個農曆日期
+        const ld = zw.chart.rawDates.lunarDate;
+        if (ld.lunarYear !== lu.getYear() || ld.lunarMonth !== Math.abs(lu.getMonth()) || ld.isLeap !== (lu.getMonth() < 0) || ld.lunarDay !== lu.getDay()) bad.lunar++;
       }
     } catch (e) { bad.thrown++; if (bad.thrown < 3) console.log('   ', JSON.stringify(inp), e.message); }
   }
-  eq(bad, { thrown: 0, day: 0, hour: 0, yearMonth: 0, shift: 0, ziwei: 0 }, '違反次數');
+  eq(bad, { thrown: 0, day: 0, hour: 0, yearMonth: 0, shift: 0, ziwei: 0, lunar: 0 }, '違反次數');
   ok(late > 400, `含晚子時 ${late} 組`);
 }
 
