@@ -1,6 +1,7 @@
 # 推到 main 或開 PR 時：語法檢查、建置，跑全部測試（引擎和瀏覽器）。
 # 在 main 上全部通過，才把排盤頁面發布到 GitHub Pages；PR 只檢查、不發布。
 # 第一次使用要先到 repo 的 Settings → Pages，把 Source 設成「GitHub Actions」。
+# 各個 action 釘在確切的 commit（後面註明是哪一版）：版本號的標籤可以被改指到別的內容，commit 不會。升版時兩個一起改。
 name: 檢查與發布
 on:
   push:
@@ -17,8 +18,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -28,7 +29,7 @@ jobs:
       # 語法檢查 → 建置（核對函式庫版本與完整性雜湊）→ 引擎測試 → 瀏覽器測試
       - run: npm run check
       - if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist/site
   deploy:
@@ -43,4 +44,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,4 +1,5 @@
-/* 八字分頁：四柱表、旺衰三看、五行字數、原局關係、大運流年、神煞，以及大運、流年的點選。 */
+/* 八字分頁：四柱表、旺衰三看、五行字數、原局關係、大運流年、神煞，以及大運、流年的點選。
+   「運」那一排有十一格：起運前（序號 -1，沒有大運干支）加上十步大運（序號 0 到 9）。 */
 import { relations, WX, WX_KEY, wxOf, yinyang } from '../engine/index.js';
 import { $, reveal, refocus } from './dom.js';
 import { S, bzYear, today } from './state.js';
@@ -12,12 +13,22 @@ function relList(list, emptyText) {
   return list.map(r => `<div class="rel"><span class="ty">${r.type}</span><span class="tx">${r.text}</span><span class="wh">${[...r.where].join('×')}${r.dist ? ' · ' + r.dist : ''} <span class="tag t-${r.tag}">${r.tag}</span></span>${r.note ? `<span class="nt">${r.note}</span>` : ''}</div>`).join('');
 }
 
-// 今天走到哪一步大運：以交運日為準，不是以年。還沒起運回傳 -1
-export const currentDayun = bz => bz.dayun.reduce((cur, d, i) => (d.startDate <= today ? i : cur), -1);
-// 點到（或預設選到）第 i 步運時先看哪一年：今天所在的那一步看今年，其他的看這步運習慣上標示的起始年
+const PRE = -1; // 起運前那一格的序號
+const stepOf = (bz, i) => (i === PRE ? bz.pre : bz.dayun[i]);
+// 今天走到哪一格：以交運日為準，不是以年。還沒出生、或十步運都走完了，回傳 null
+export function currentStep(bz) {
+  if (today < bz.pre.startDate) return null;
+  if (today < bz.pre.endDate) return PRE;
+  const i = bz.dayun.findIndex(d => d.startDate <= today && today < d.endDate);
+  return i < 0 ? null : i;
+}
+// 一張新的盤先看哪一格：今天所在的那一格；還沒出生的看起運前，十步運都走完的看最後一步
+export const defaultStep = bz => currentStep(bz) ?? (today < bz.pre.startDate ? PRE : bz.dayun.length - 1);
+// 點到（或預設選到）第 i 格時先看哪一年：今天所在的那一格看今年；其他的，大運看習慣上標示的起始年，起運前看出生那一年
 export function defaultYear(bz, i) {
-  const D = bz.dayun[i];
-  return i === currentDayun(bz) && D.years.some(n => n.year === bzYear) ? bzYear : D.startYear;
+  const D = stepOf(bz, i);
+  if (i === currentStep(bz) && D.years.some(n => n.year === bzYear)) return bzYear;
+  return i === PRE ? D.years[0].year : D.startYear;
 }
 
 export function renderBazi() {
@@ -28,7 +39,7 @@ export function renderBazi() {
   $('#rels').innerHTML = relList(bz.relations, '原局沒有合、沖、刑、害。');
   const y = bz.yun;
   $('#yunhead').innerHTML = `<span><b>${yinyang(bz.P[0].gan)}${bz.male ? '男' : '女'}${bz.forward ? '順行' : '逆行'}</b></span>
-      <span>出生後 <b>${y.y} 年 ${y.m} 個月 ${y.d} 天</b>起運，約 ${y.date} 交運${today < y.date ? '（今天還沒起運）' : ''}</span>`;
+      <span>出生後 <b>${y.y} 年 ${y.m} 個月 ${y.d} 天</b>起運，約 ${y.date} 交運${currentStep(bz) === PRE ? '（今天還沒起運）' : ''}</span>`;
   renderDayun();
   renderShensha(bz);
 }
@@ -63,33 +74,46 @@ function renderStrength(st) {
 
 /* 一步大運或一個流年的按鈕。不另外給 aria-label：讀屏唸的就是按鈕上看得到的字（今、十神、干支、年、歲），
    畫面上有的資訊不會少，語音操作也能照著看到的字點（WCAG 2.5.3）。
-   edge：交運的那一年。這一年只有交運日的一側屬於這步運，畫面用虛線框標出；hint 是同一件事給讀屏的文字版 */
+   gz 是空字串的是「起運前」那一格：干支的位置畫兩道橫線，讀屏另外唸「還沒有大運干支」。
+   edge：交運的那一年。這一年只有交運日的一側屬於這一格，畫面用虛線框標出；hint 是同一件事給讀屏的文字版 */
 function yunBtn({ top, gz, bottom, y, a, pressed, now, data, edge = false, hint = '' }) {
+  const glyphs = gz
+    ? `<span class="c ${wxc(gz[0])}">${gz[0]}</span><span class="c ${wxc(gz[1])}">${gz[1]}</span>`
+    : '<span class="c none" aria-hidden="true">—</span><span class="c none" aria-hidden="true">—</span><span class="vh">還沒有大運干支</span>';
   return `<button type="button" class="yun${edge ? ' edge' : ''}" aria-pressed="${pressed}" ${data}>
       ${now ? '<span class="now">今</span>' : ''}
-      <span class="g">${top}</span><span class="c ${wxc(gz[0])}">${gz[0]}</span><span class="c ${wxc(gz[1])}">${gz[1]}</span><span class="g">${bottom}</span>
+      <span class="g">${top}</span>${glyphs}<span class="g">${bottom || '&nbsp;'}</span>
       <span class="y">${y}</span><span class="a">${a}</span>${hint ? `<span class="vh">${hint}</span>` : ''}</button>`;
 }
 
 function renderDayun() {
-  const { bz } = S, cur = currentDayun(bz);
-  $('#dayun').innerHTML = bz.dayun.map((d, i) => yunBtn({
+  const { bz } = S, cur = currentStep(bz), pre = S.dy === PRE, p = bz.pre;
+  $('#dayun').innerHTML = yunBtn({
+    top: '起運前', gz: '', bottom: '', y: p.endYear > p.startYear ? `${p.startYear}–${String(p.endYear).slice(-2)}` : `${p.startYear}`, a: p.endAge > 1 ? `1–${p.endAge} 歲` : '1 歲',
+    pressed: pre, now: cur === PRE, data: `data-dy="${PRE}"`,
+  }) + bz.dayun.map((d, i) => yunBtn({
     top: d.ganGod, gz: d.gz, bottom: d.zhiGod, y: `${d.startYear}–${String(d.endYear).slice(-2)}`, a: `${d.startAge}–${d.endAge} 歲`,
     pressed: i === S.dy, now: i === cur, data: `data-dy="${i}"`,
   })).join('');
-  // 大運在交運日換、流年在立春換，所以頭尾兩個流年各只有一段屬於這步運（引擎的 years 就是這樣列的）
-  const D = bz.dayun[S.dy], years = D.years, last = years.length - 1;
+  /* 大運在交運日換、流年在立春換，所以交運的那一年前後兩格各佔一段（引擎的 years 就是這樣列的）：
+     大運的頭尾兩年都是交運年；起運前的頭一年是出生那一年，只有最後一年是交運年 */
+  const D = stepOf(bz, S.dy), years = D.years, last = years.length - 1;
   if (!years.some(n => n.year === S.ln)) S.ln = defaultYear(bz, S.dy);
-  $('#ln-title').innerHTML = `${D.gz}運的流年 <small>約 ${D.startDate} 交入、${D.endDate} 交出。虛線框是交運的那一年：頭一年在交入之後、最後一年在交出之前，才屬於這步運</small>`;
+  $('#ln-title').innerHTML = pre
+    ? `起運前的流年 <small>約 ${D.endDate} 起運。這段時間還沒有大運干支，只列流年。虛線框是起運的那一年：起運之前才屬於這一段</small>`
+    : `${D.gz}運的流年 <small>約 ${D.startDate} 交入、${D.endDate} 交出。虛線框是交運的那一年：頭一年在交入之後、最後一年在交出之前，才屬於這步運</small>`;
   $('#liunian').innerHTML = years.map((n, k) => yunBtn({
-    top: n.ganGod, gz: n.gz, bottom: n.zhiGod, y: n.year, a: `${n.age} 歲`, edge: k === 0 || k === last,
+    top: n.ganGod, gz: n.gz, bottom: n.zhiGod, y: n.year, a: `${n.age} 歲`, edge: k === last || (k === 0 && !pre),
     pressed: n.year === S.ln, now: n.year === bzYear, data: `data-ln="${n.year}"`,
-    hint: k === 0 ? `約 ${D.startDate} 交入這步運` : k === last ? `約 ${D.endDate} 交出這步運` : '',
+    hint: k === last ? (pre ? `約 ${D.endDate} 起運` : `約 ${D.endDate} 交出這步運`) : k === 0 && !pre ? `約 ${D.startDate} 交入這步運` : '',
   })).join('');
   const N = years.find(n => n.year === S.ln);
-  const P = bz.P.concat([{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }, { pos: '歲', gan: N.gz[0], zhi: N.gz[1], natal: false }]);
-  $('#ix-title').innerHTML = `${D.gz}運、${N.year} ${N.gz}年 與原局 <small>只列牽涉運或歲的關係</small>`;
-  $('#ix').innerHTML = relList(relations(P, true), '這一運、這一年和原局沒有合、沖、刑、害。');
+  const sui = { pos: '歲', gan: N.gz[0], zhi: N.gz[1], natal: false };
+  const P = bz.P.concat(pre ? [sui] : [{ pos: '運', gan: D.gz[0], zhi: D.gz[1], natal: false }, sui]);
+  $('#ix-title').innerHTML = pre
+    ? `起運前、${N.year} ${N.gz}年 與原局 <small>只列牽涉流年的關係</small>`
+    : `${D.gz}運、${N.year} ${N.gz}年 與原局 <small>只列牽涉運或歲的關係</small>`;
+  $('#ix').innerHTML = relList(relations(P, true), pre ? '這一年和原局沒有合、沖、刑、害。' : '這一運、這一年和原局沒有合、沖、刑、害。');
   reveal('#dayun'); reveal('#liunian');
 }
 

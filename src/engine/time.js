@@ -1,5 +1,5 @@
 /* 時間換算：把輸入的鐘錶時間（公曆或農曆）換成出生瞬間與排盤用時，並檢查輸入。
-   含毫秒數與年月日時分的互換、農曆月日的寫法、均時差、IANA 時區偏移、時辰、給使用者看的錯誤 userError。
+   含毫秒數與年月日時分的互換、農曆月日的寫法、均時差、IANA 時區偏移與時區資料的自我檢查、時辰、給使用者看的錯誤 userError。
    農曆換公曆用全域的 Lunar（lunar-javascript），時區資料用執行環境的 Intl；不 import 其他模組。 */
 
 /**
@@ -36,6 +36,9 @@
  *   resolveTime() 不讀，bazi()、ziwei() 才用
  * @property {'男'|'女'} gender 性別。resolveTime() 不讀；bazi() 用來定大運順逆，ziwei() 交給 iztro。
  *   只接受這兩個值，其他寫法 bazi()、ziwei() 都拋 userError
+ * @property {string} [zwHua] 紫微的四化版本，只有 ziwei() 讀。可用的值見 ZW_OPTIONS.hua，不給就是第一個（坊間通行的版本）
+ * @property {string} [zwYear] 紫微的年界，只有 ziwei() 讀：'lunar' 正月初一換年（預設），'lichun' 立春當天換年
+ * @property {string} [zwLeap] 紫微的閏月算法，只有 ziwei() 讀：'mid' 閏月十五日以前算本月、十六日起算下月（預設），'current' 整個閏月算本月
  */
 
 /**
@@ -98,6 +101,8 @@ const pad = n => String(n).padStart(2, '0');
 const fmt = t => `${t.y}-${pad(t.m)}-${pad(t.d)} ${pad(t.h)}:${pad(t.mi)}`;
 
 const LUNAR_M = ['', '正', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+// 農曆月、日各自的寫法：「十月」「閏二月」；「初十」「廿八」
+const lunarMonthName = (month, leap) => `${leap ? '閏' : ''}${LUNAR_M[month]}月`;
 const lunarDayName = d => (d <= 10 ? '初' + '一二三四五六七八九十'[d - 1] : d < 20 ? '十' + '一二三四五六七八九'[d - 11] : d === 20 ? '二十' : d < 30 ? '廿' + '一二三四五六七八九'[d - 21] : '三十');
 /**
  * 農曆月日的寫法，例如「十月廿八」「閏二月初十」。年份由呼叫端自己接：八字寫干支紀年，紫微寫公曆年數。
@@ -106,7 +111,7 @@ const lunarDayName = d => (d <= 10 ? '初' + '一二三四五六七八九十'[d 
  * @param {boolean} leap 是否為閏月
  * @returns {string}
  */
-const lunarMonthDay = (month, day, leap) => `${leap ? '閏' : ''}${LUNAR_M[month]}月${lunarDayName(day)}`;
+const lunarMonthDay = (month, day, leap) => lunarMonthName(month, leap) + lunarDayName(day);
 
 /**
  * 均時差（分鐘），Spencer 公式，誤差約半分鐘。
@@ -150,6 +155,34 @@ function zoneLookup(zone, wallMs) {
  * @throws {RangeError} 執行環境不認得這個時區名稱時，由 Intl.DateTimeFormat 丟出
  */
 const zoneOffset = (zone, wallMs) => zoneLookup(zone, wallMs).offset;
+
+/* 拿來檢查執行環境時區資料的幾件史實：[IANA 時區, 年, 月, 日（當地正午）, 當時鐘錶比 UTC 快幾分鐘, 說明]。
+   挑的是出生地清單裡每個時區各一兩件、時區資料庫多年來沒有改動過的事。馬尼拉的歷史資料近年還在修訂，不拿來當標準 */
+const ZONE_PROBES = [
+  ['Asia/Taipei', 1940, 6, 1, 540, '台灣 1940 年的 UTC+9'],
+  ['Asia/Taipei', 1975, 7, 1, 540, '台灣 1975 年的夏令時間'],
+  ['Asia/Shanghai', 1988, 7, 1, 540, '中國大陸 1988 年的夏令時間'],
+  ['Asia/Hong_Kong', 1970, 7, 1, 540, '香港 1970 年的夏令時間'],
+  ['Asia/Macau', 1975, 7, 1, 540, '澳門 1975 年的夏令時間'],
+  ['Asia/Singapore', 1970, 1, 1, 450, '新加坡 1970 年的 UTC+7:30'],
+  ['Asia/Kuala_Lumpur', 1970, 1, 1, 450, '吉隆坡 1970 年的 UTC+7:30'],
+  ['Asia/Tokyo', 1950, 7, 1, 600, '日本 1950 年的夏令時間'],
+  ['Asia/Seoul', 1988, 7, 1, 600, '韓國 1988 年的夏令時間'],
+];
+/**
+ * 檢查執行環境內建的時區歷史資料夠不夠用。自動換算夏令時間與歷史標準時全靠這份資料；
+ * 有的瀏覽器或精簡過的執行環境只帶現行規則，查歷史日期不會出錯、只會安靜地回傳現在的時差，排出來的盤就差一小時。
+ * 所以拿幾件確定的史實問一遍。
+ * @param {string} [zone] 只檢查這個 IANA 時區的那幾件事（這個時區沒有可問的事，就問台北的，當作整體的指標）；不給就全部檢查
+ * @returns {string[]} 答錯的那幾件事的說明；全部答對是空陣列
+ */
+function zoneDataCheck(zone) {
+  let probes = zone ? ZONE_PROBES.filter(p => p[0] === zone) : ZONE_PROBES;
+  if (!probes.length) probes = ZONE_PROBES.filter(p => p[0] === 'Asia/Taipei');
+  return probes.filter(([z, y, m, d, want]) => {
+    try { return zoneOffset(z, Date.UTC(y, m - 1, d, 12)) !== want; } catch (e) { return true; }
+  }).map(probe => probe[5]);
+}
 
 /**
  * 十二時辰的名稱，索引就是 ResolvedTime 的 hourIndex。
@@ -229,6 +262,6 @@ function resolveTime(inp) {
 }
 
 // 對外，由 index.js 轉出
-export { SHICHEN, resolveTime, equationOfTime, zoneOffset, fmt, pad, fromMs, toMs, userError };
+export { SHICHEN, resolveTime, equationOfTime, zoneOffset, zoneDataCheck, fmt, pad, fromMs, toMs, userError };
 // 只給引擎內的其他模組用
-export { lunarMonthDay };
+export { lunarMonthDay, lunarMonthName, lunarDayName };

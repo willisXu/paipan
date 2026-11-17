@@ -1,6 +1,7 @@
 /* 生辰表單：下拉選單內容、欄位之間的連動、把一筆輸入寫進表單、把表單讀成引擎的輸入、公曆農曆互換。 */
-import { pad, userError } from '../engine/index.js';
+import { pad, userError, ZW_OPTIONS } from '../engine/index.js';
 import { $ } from './dom.js';
+import { zwOptChanges } from './format.js';
 import { PLACES, PLACE, LM, LD } from './places.js';
 
 // 出生地與農曆月日的選項由資料表產生
@@ -13,6 +14,10 @@ export function initForm() {
 const radio = name => document.querySelector(`input[name=${name}]:checked`).value;
 const setRadio = (name, v) => { document.querySelectorAll(`input[name=${name}]`).forEach(el => { el.checked = el.value === v; }); };
 
+// 紫微流派設定的三個下拉選單 ↔ 設定值。選單裡沒有的值（舊存檔沒有這幾欄）一律當成預設
+const ZW_FIELDS = [['hua', '#zhua', 'zwHua'], ['year', '#zyear', 'zwYear'], ['leap', '#zleap', 'zwLeap']];
+const zwOptions = () => Object.fromEntries(ZW_FIELDS.map(([k, sel]) => [k, $(sel).value]));
+
 let forcedStd = false; // 夏令時間是否因為選了自訂地點而被改成手動
 export function syncForm() {
   const lunar = radio('cal') === 'lunar', custom = $('#place').value === 'custom';
@@ -24,6 +29,9 @@ export function syncForm() {
   clock.querySelector('option[value=auto]').disabled = custom;
   if (custom && clock.value === 'auto') { clock.value = 'std'; forcedStd = true; }
   else if (!custom && forcedStd) { if (clock.value === 'std') clock.value = 'auto'; forcedStd = false; }
+  // 紫微流派設定平常收著，標題旁邊寫出現在是不是預設：改過的那幾項不必展開也看得到
+  const changed = zwOptChanges(zwOptions());
+  $('#zopts-now').textContent = changed.length ? `目前：${changed.join('、')}` : '目前都是預設（坊間通行的排法）';
 }
 
 export function writeForm(inp) {
@@ -41,7 +49,9 @@ export function writeForm(inp) {
   $('#clock').value = inp.clock; forcedStd = false;
   $('#tst').value = inp.useTST ? '1' : '0';
   $('#zi').value = inp.ziRule;
+  for (const [k, sel, field] of ZW_FIELDS) $(sel).value = ZW_OPTIONS[k].includes(inp[field]) ? inp[field] : ZW_OPTIONS[k][0];
   syncForm();
+  if (zwOptChanges(zwOptions()).length) $('#zopts').open = true; // 載入的盤改過流派設定：把那一區打開，免得沒注意到
 }
 
 // 表單讀成引擎的輸入。欄位沒填、格式不對時拋 userError，訊息直接顯示給使用者；日期存不存在、年份在不在可排的範圍，由引擎檢查
@@ -70,6 +80,7 @@ export function readForm() {
     Object.assign(inp, PLACE.get(inp.place));
     inp.clock = $('#clock').value;
   }
+  for (const [, sel, field] of ZW_FIELDS) inp[field] = $(sel).value;
   return inp;
 }
 

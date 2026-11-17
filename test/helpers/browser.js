@@ -1,6 +1,7 @@
 /* 瀏覽器測試共用：找 Playwright、開瀏覽器、組出模擬發布環境的外層骨架、把 CDN 請求導到 node_modules、固定時鐘。
    測的是建置後的 dist/paipan.html，所以要先跑 node scripts/build.js。 */
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -56,6 +57,42 @@ export async function openPage(browser, harness, { context = {}, hash = '', init
   await page.clock.setFixedTime(NOW);
   await page.goto('file://' + harness + hash);
   return { ctx, page, errors, pageErrors };
+}
+
+/* 把一個資料夾用本機的 HTTP 伺服器送出去（只聽 127.0.0.1，埠號由系統挑），給「放上網站的那一版」的測試用：
+   帶完整性雜湊的 <script> 在 file:// 底下不會執行，要走 HTTP 才是網站上真正的樣子。
+   tamper：路徑 → 要接在檔案後面的內容，模擬檔案被換掉。回傳 { url, close }。 */
+export async function serveDir(dir, { tamper = {} } = {}) {
+  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.txt': 'text/plain; charset=utf-8' };
+  const server = http.createServer((req, res) => {
+    const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/\/$/, '/index.html');
+    const file = path.join(dir, rel);
+    if (!file.startsWith(dir + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end('not found'); return; }
+    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
+    res.end(Buffer.concat([fs.readFileSync(file), Buffer.from(tamper[rel] || '')]));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  return { url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise(resolve => server.close(resolve)) };
+}
+
+/* 開「放上網站的那一版」（serveDir 送出來的網址）。同一個來源的請求照常送，其餘外部請求一律擋掉並記在 external 裡，
+   測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定。 */
+export async function openSite(browser, url, { context = {} } = {}) {
+  const ctx = await browser.newContext({ ...DESKTOP, ...context });
+  const page = await ctx.newPage();
+  const errors = [], external = [], responses = [];
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_FAILED|Failed to load resource/.test(m.text())) errors.push('console: ' + m.text()); });
+  page.on('response', r => responses.push({ url: r.url(), status: r.status() }));
+  await page.route('**/*', route => {
+    const u = route.request().url();
+    if (u.startsWith(url)) return route.continue();
+    external.push(u);
+    return route.abort();
+  });
+  await page.clock.setFixedTime(NOW);
+  await page.goto(url);
+  return { ctx, page, errors, external, responses };
 }
 
 // 常用的頁面操作。setVal 填完再補一個 change，文字、日期這類欄位才會立刻觸發重排

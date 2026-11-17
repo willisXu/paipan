@@ -1,4 +1,4 @@
-/* 八字：bazi() 排四柱、節氣位置、大運流年、胎元，並附上原局的干支關係、神煞、旺衰觀察、五行字數。
+/* 八字：bazi() 排四柱、節氣位置、起運前與十步大運的流年、胎元，並附上原局的干支關係、神煞、旺衰觀察、五行字數。
    四柱、節氣、起運由 lunar-javascript（全域的 Solar）計算；十神、十二長生、納音、空亡用 ganzhi.js 的表。 */
 import { GAN, ZHI, CANG, gi, zi, yearGZ, tenGod, changSheng, nayin, xunKong } from './ganzhi.js';
 import { pad, toMs, lunarMonthDay, userError } from './time.js';
@@ -58,6 +58,19 @@ import { strength, wuxingCount } from './strength.js';
  */
 
 /**
+ * 起運之前的那一段：從出生到交入第一步大運。這段時間還沒有大運干支。
+ * @typedef {object} PreYun
+ * @property {string} startDate 出生的公曆日期（UTC+8），YYYY-MM-DD
+ * @property {string} endDate 交入第一步運的公曆日期，也就是 dayun[0].startDate
+ * @property {number} startYear 習慣上標示的起始年：出生那一天所在的公曆年
+ * @property {number} endYear 習慣上標示的結束年：第一步運起始年的前一年；出生當年就起運的，等於 startYear
+ * @property {number} startAge 固定是 1：出生時虛歲 1 歲
+ * @property {number} endAge 第一步運起始虛歲的前一歲，最小是 1
+ * @property {LiuNian[]} years 和這段時間有重疊的流年：從出生當下的流年，到交入第一步運當下的流年
+ *   （最後這一年在起運之後屬第一步運，所以也列在 dayun[0].years 的開頭）
+ */
+
+/**
  * bazi() 的結果。
  * @typedef {object} BaziChart
  * @property {string[]} gz 四柱干支，依年、月、日、時，每個兩個字
@@ -73,6 +86,7 @@ import { strength, wuxingCount } from './strength.js';
  *   near 表示離其中一個不到一天
  * @property {{y: number, m: number, d: number, date: string}} yun 起運（不是大運列表，大運在 dayun）：
  *   出生後 y 年 m 個月 d 天起運；date 是交入第一步運的公曆日期，YYYY-MM-DD，也就是 dayun[0].startDate
+ * @property {PreYun} pre 起運之前的那一段（沒有大運干支，只有流年）
  * @property {DaYun[]} dayun 十步大運
  * @property {string} taiYuan 胎元干支
  * @property {import('./relations.js').Relation[]} relations 原局四柱之間的干支關係
@@ -142,6 +156,14 @@ function bazi(inp, rt) {
       startAge: ageIn(dy.getStartYear()), endAge: ageIn(dy.getEndYear()), ...god2(dy.getGanZhi()), years,
     };
   });
+  // 起運之前：從出生（流年就是年柱所屬的那一年）到交入第一步運
+  const preYears = [];
+  for (let y = baseYear; y <= flowYear(ss); y++) preYears.push(liuNian(y));
+  const i8 = rt.instant8, first = dayun[0];
+  const pre = {
+    startDate: `${i8.y}-${pad(i8.m)}-${pad(i8.d)}`, endDate: first.startDate,
+    startYear: i8.y, endYear: Math.max(i8.y, first.startYear - 1), startAge: 1, endAge: Math.max(1, first.startAge - 1), years: preYears,
+  };
   const lm = ll.getMonth();
   const mg = P[1];
   return {
@@ -149,7 +171,7 @@ function bazi(inp, rt) {
     lunarText: `${ll.getYearInGanZhi()}年 ${lunarMonthDay(Math.abs(lm), ll.getDay(), lm < 0)}`,
     jie: { prev: pj, next: nj, sincePrev, toNext, near: Math.min(sincePrev, toNext) < 1 },
     yun: { y: yun.getStartYear(), m: yun.getStartMonth(), d: yun.getStartDay(), date: ymd(ss) },
-    dayun,
+    pre, dayun,
     taiYuan: GAN[(gi(mg.gan) + 1) % 10] + ZHI[(zi(mg.zhi) + 3) % 12], // 月干進一、月支進三
     relations: relations(P),
     shensha: shensha(P),

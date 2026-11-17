@@ -62,7 +62,7 @@ const noOverflow = page => page.evaluate(() => document.documentElement.scrollWi
     ok(await page.locator('#zw .ly').count() === 0 && await page.locator('#yrs').isHidden(), '回到本命盤');
     // 打完字直接用滑鼠點運限：欄位失焦會觸發重排，重畫若發生在按下與放開之間，被點的按鈕被換掉，這一下點擊就消失
     await page.locator('#nm').click(); await page.keyboard.type('甲');
-    await page.locator('#decs .chip2').nth(3).click();
+    await page.locator('#decs .chip2').nth(4).click(); // 本命盤、童限之後的第三個大限
     await page.waitForTimeout(50);
     ok((await text(page, '#decs .chip2[aria-pressed=true]')).includes('23–32') && (await text(page, '#zw .center .cn')).startsWith('王小明甲'), '改完姓名直接點大限：第一下就生效，姓名也更新');
     await page.locator('#t-bazi').click();

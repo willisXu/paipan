@@ -1,8 +1,9 @@
 /* 存起來的盤（只存在這個瀏覽器的 localStorage）：讀回時的檢查、已存清單、載入、刪除、儲存。 */
-import { pad, resolveTime } from '../engine/index.js';
+import { pad, resolveTime, ZW_OPTIONS } from '../engine/index.js';
 import { $, esc, showError, toast } from './dom.js';
 import { S } from './state.js';
 import { PLACE } from './places.js';
+import { zwOptChanges } from './format.js';
 import { writeForm } from './form.js';
 import { run } from './run.js';
 
@@ -15,12 +16,15 @@ function clean(s) {
     return check(s);
   } catch (e) { return null; }
 }
+const opt = (k, v) => (ZW_OPTIONS[k].includes(v) ? v : ZW_OPTIONS[k][0]);
 function check(s) {
   if (!s || typeof s !== 'object') return null;
   const o = {
     name: String(s.name || '').slice(0, 20), gender: s.gender === '女' ? '女' : '男', calendar: s.calendar === 'lunar' ? 'lunar' : 'solar',
     h: num(s.h, 0, 23, true), mi: num(s.mi, 0, 59, true), place: PLACE.has(s.place) ? s.place : 'custom',
     clock: ['auto', 'std', 'dst'].includes(s.clock) ? s.clock : 'auto', useTST: s.useTST === true, ziRule: s.ziRule === 'same' ? 'same' : 'next',
+    // 紫微的流派設定：不認得的值、以及加上這幾欄之前存的盤，都當成預設
+    zwHua: opt('hua', s.zwHua), zwYear: opt('year', s.zwYear), zwLeap: opt('leap', s.zwLeap),
   };
   if (o.place === 'custom') Object.assign(o, { lon: num(s.lon, -180, 180), tz: num(s.tz, -12, 14) });
   if (o.calendar === 'lunar') Object.assign(o, { ly: num(s.ly, 1, 9999, true), lm: num(s.lm, 1, 12, true), ld: num(s.ld, 1, 30, true), leap: s.leap === true });
@@ -31,7 +35,9 @@ function check(s) {
 }
 const loadSaved = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v.map(clean).filter(Boolean) : []; } catch (e) { return []; } };
 const storeSaved = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); return true; } catch (e) { return false; } };
-const labelOf = s => `${s.name || '未命名'} · ${s.calendar === 'lunar' ? `農曆 ${s.ly}/${s.leap ? '閏' : ''}${s.lm}/${s.ld}` : `${s.y}/${s.m}/${s.d}`} ${pad(s.h)}:${pad(s.mi)}`;
+// 同一個生辰可以用不同的紫微流派設定各存一筆：改過設定的那一筆在後面標出來
+const labelOf = s => `${s.name || '未命名'} · ${s.calendar === 'lunar' ? `農曆 ${s.ly}/${s.leap ? '閏' : ''}${s.lm}/${s.ld}` : `${s.y}/${s.m}/${s.d}`} ${pad(s.h)}:${pad(s.mi)}${
+  zwOptChanges({ hua: s.zwHua, year: s.zwYear, leap: s.zwLeap }).length ? ' · 紫微另設' : ''}`;
 export function renderSaved() {
   const list = loadSaved();
   $('#saved').innerHTML = list.length ? '<span class="muted" style="font-size:12px">已存</span>' + list.map((s, i) => `<span class="chip"><button type="button" data-load="${i}">${esc(labelOf(s))}</button><button type="button" data-del="${i}" aria-label="刪除 ${esc(labelOf(s))}">×</button></span>`).join('') : '';

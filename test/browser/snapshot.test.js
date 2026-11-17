@@ -12,8 +12,9 @@ import { root, launch, writeHarness, openPage, blockClipboard } from '../helpers
 const GOLDEN = path.join(root, 'test', 'snapshots', 'golden.json.gz');
 const UPDATE = process.argv.includes('--update');
 
-const S = { gender: '男', cal: 'solar', date: '1984-11-20', time: '14:00', place: '台北', clock: 'auto', tst: false, zi: 'next', dy: 1, ln: 2, dec: 4, yr: 3, pal: 6 };
-// 每筆：生辰設定，加上要點的大運（dy）、流年（ln）、大限（dec）、流年籤（yr）、宮位（pal）
+const S = { gender: '男', cal: 'solar', date: '1984-11-20', time: '14:00', place: '台北', clock: 'auto', tst: false, zi: 'next', zhua: 'tongxing', zyear: 'lunar', zleap: 'mid', dy: 1, ln: 2, dec: 4, yr: 3, pal: 6 };
+/* 每筆：生辰設定（含紫微的流派設定 zhua、zyear、zleap），加上要點的大運（dy，-1 是起運前）、流年（ln）、
+   大限（dec，'child' 是童限）、流年籤（yr）、宮位（pal）；有給 mo、day 的再往下點流月、流日（都是「第幾個籤」） */
 const SCENARIOS = [
   { id: '教材範例盤', keep: true },
   { id: '女命', gender: '女', dy: 0, ln: 9, dec: 1, yr: 0, pal: 0 },
@@ -34,7 +35,17 @@ const SCENARIOS = [
   { id: '上海 1940', date: '1940-06-01', time: '12:00', place: '上海', dy: 8, ln: 6, dec: 9, yr: 6, pal: 1 },
   { id: '首爾 1988 夏令女命', date: '1988-07-01', time: '12:00', place: '首爾', gender: '女', dy: 3, ln: 8, dec: 4, yr: 8, pal: 5 },
   { id: '手動標準時、高雄、姓名含符號', name: '<b>甲&乙</b>', date: '2000-01-01', time: '13:04', place: '高雄', clock: 'std', dy: 2, ln: 6, dec: 3, yr: 6, pal: 8 },
+  { id: '還沒起運的小孩', date: '2024-03-10', time: '10:00', dy: -1, ln: 2, dec: 'child', yr: 1, pal: 4 }, // 八字點起運前那一格，紫微點童限
   { id: '不存在的閏月', cal: 'lunar', ly: 1984, lm: 5, ld: 3, leap: true, time: '14:00', error: true },
+  // 紫微的流月、流日與流派設定
+  { id: '流月與流日', mo: 9, day: 2 },
+  { id: '閏月的流月下半', yr: 9, mo: 7, day: 5, pal: 3 }, // 2025 年閏六月
+  { id: '中州派四化', date: '1990-06-15', time: '10:00', zhua: 'zhongzhou', dy: 2, ln: 3, dec: 3, yr: 8, mo: 0, day: 0, pal: 9 },
+  { id: '庚干陽武同相、女命', date: '1990-06-15', time: '10:00', gender: '女', zhua: 'gengTongXiang', dy: 1, ln: 4, dec: 2, yr: 0, pal: 7 },
+  { id: '立春年界、生在立春和春節之間', date: '1985-02-10', time: '12:00', zyear: 'lichun', dy: 0, ln: 0, dec: 'child', yr: 0, mo: 11, day: 29, pal: 2 },
+  { id: '立春年界、立春當天交節之前', date: '1984-02-04', time: '10:00', zyear: 'lichun', dy: 1, ln: 1, dec: 2, yr: 2, pal: 5 },
+  { id: '閏月下半月出生', cal: 'lunar', ly: 2023, lm: 2, ld: 20, leap: true, time: '10:00', dy: 0, ln: 3, dec: 1, yr: 4, mo: 2, day: 10, pal: 0 },
+  { id: '閏月下半月出生、算本月、庚干陽武同陰', cal: 'lunar', ly: 2023, lm: 2, ld: 20, leap: true, time: '10:00', zleap: 'current', zhua: 'gengTongYin', dy: 0, ln: 3, dec: 1, yr: 4, mo: 2, day: 10, pal: 0 },
 ].map(s => ({ ...S, ...s }));
 
 // 只收合一般空白（原始碼排版用的縮排與換行）；全形空白是畫面內容的一部分，要原樣比對
@@ -55,6 +66,7 @@ async function capture(browser, sc, harness) {
       $('#place').value = v.place;
       if (v.place === 'custom') { $('#lon').value = v.lon; $('#tz').value = v.tz; }
       $('#clock').value = v.clock; $('#tst').value = v.tst ? '1' : '0'; $('#zi').value = v.zi;
+      $('#zhua').value = v.zhua; $('#zyear').value = v.zyear; $('#zleap').value = v.zleap;
       $('#zi').dispatchEvent(new Event('change', { bubbles: true })); // 下拉選單的 change 會立即重排
     }, sc);
   }
@@ -69,8 +81,11 @@ async function capture(browser, sc, harness) {
     snaps.bazi2 = await html('#p-bazi');
     await page.locator('#t-ziwei').click();
     snaps.ziwei = await html('#p-ziwei');
-    await page.locator('#decs .chip2').nth(sc.dec).click();
+    // 大限用「第幾個籤」點（0 是本命盤）。童限的籤排在本命盤後面，數的時候跳過，另外用 dec: 'child' 指定
+    await (sc.dec === 'child' ? page.locator('#decs [data-dec="child"]') : page.locator('#decs .chip2:not([data-dec="child"])').nth(sc.dec)).click();
     await page.locator('#yrs .chip2').nth(sc.yr).click();
+    if (sc.mo !== undefined) await page.locator('#mos .chip2').nth(sc.mo).click();
+    if (sc.day !== undefined) await page.locator('#days .chip2').nth(sc.day).click();
     await page.locator(`#zw .cell[data-pal="${sc.pal}"]`).click();
     snaps.ziwei2 = await html('#p-ziwei');
     await page.locator('#copy').click();

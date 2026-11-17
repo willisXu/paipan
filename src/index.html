@@ -87,7 +87,36 @@
         </select>
       </div>
     </div>
-    <p class="help"><b>夏令時間</b>（日光節約時間）：台灣 1945–1979 年間多個年份、中國大陸 1986–1991 年曾把鐘錶撥快一小時。自動模式依瀏覽器內建的時區歷史資料，把當時鐘錶上的時間換回現行標準時（夏令時間減一小時；日治時期的 UTC+9 也換回 UTC+8），換算結果列在下方。出生證明、戶籍上的時間請維持自動；只有手上的時間已經是換算過的，才改成手動。<b>真太陽時</b>：以出生地經度和均時差換算太陽時。教材範例盤未校正，用不用請在看盤紀錄上標註。<b>子時</b>：23:00–24:00 出生的人，換日換柱算次日，夜子時不換日算當日；教材採主流的換日換柱。<b>範圍</b>：公曆 1900 到 2100 年。</p>
+    <p class="help"><b>夏令時間</b>（日光節約時間）：台灣 1946–1979 年間多個年份、中國大陸 1986–1991 年曾把鐘錶撥快一小時。自動模式依瀏覽器內建的時區歷史資料，把當時鐘錶上的時間換回現行標準時（夏令時間減一小時；日治時期的 UTC+9 也換回 UTC+8），換算結果列在下方。出生證明、戶籍上的時間請維持自動；只有手上的時間已經是換算過的，才改成手動。<b>真太陽時</b>：以出生地經度和均時差換算太陽時。教材範例盤未校正，用不用請在看盤紀錄上標註。<b>子時</b>：23:00–24:00 出生的人，換日換柱算次日，夜子時不換日算當日；教材採主流的換日換柱。<b>範圍</b>：公曆 1900 到 2100 年。</p>
+    <details class="zopts" id="zopts">
+      <summary>紫微斗數流派設定<span id="zopts-now"></span></summary>
+      <div class="fields">
+        <div class="fld">
+          <label for="zhua">四化版本</label>
+          <select id="zhua">
+            <option value="tongxing">通行版：戊貪陰右機、庚陽武陰同、壬梁紫左武</option>
+            <option value="gengTongYin">庚干改陽武同陰（天同化科、太陰化忌）</option>
+            <option value="gengTongXiang">庚干改陽武同相（天同化科、天相化忌）</option>
+            <option value="zhongzhou">中州派：戊貪陰陽機、庚陽武府同、壬梁紫府武</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="zyear">年界（生年從哪一天換）</label>
+          <select id="zyear">
+            <option value="lunar">正月初一</option>
+            <option value="lichun">立春</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="zleap">閏月出生算哪個月</label>
+          <select id="zleap">
+            <option value="mid">月中分界：十五日以前算本月，十六日起算下月</option>
+            <option value="current">整個閏月算本月</option>
+          </select>
+        </div>
+      </div>
+      <p class="help">這三項只動紫微斗數，八字不受影響；預設都是坊間通行的排法。<b>四化版本</b>：十干四化在戊、庚、壬三干各家不同，差在化科、化忌；生年四化、宮干飛化和各層運限的四化都跟著換。<b>年界</b>：只影響生在立春和正月初一之間的人。生年干支不同，年干四化、祿存這些跟著年干支走的星、五行局、大限順逆都可能不同。立春以「日」為單位，立春當天整天算新的一年；流年一律以正月初一換年。<b>閏月</b>：只影響閏月出生的人，決定命宮起在哪一宮；流月遇到閏月也照同一種算法。另有「一律算下個月」的算法，本頁沒有提供。</p>
+    </details>
     <div id="err" class="err" role="alert" hidden></div>
     <div class="actions">
       <button type="submit" class="btn primary">排盤</button>
@@ -96,6 +125,7 @@
     </div>
   </form>
 
+  <p class="vh" role="status" id="live"></p>
   <section class="summary" id="summary"></section>
 
   <div class="tabbar">
@@ -153,15 +183,22 @@
     <div class="card yunbar">
       <div class="chips" id="decs" role="group" aria-label="大限"></div>
       <div class="chips yrs" id="yrs" role="group" aria-label="流年" hidden></div>
+      <div class="chips mos" id="mos" role="group" aria-label="流月" hidden></div>
+      <div class="chips days" id="days" role="group" aria-label="流日" hidden></div>
     </div>
     <div>
       <p class="swipe">命盤較寬，可左右滑動。</p>
       <div class="scroll-x"><div class="zw" id="zw"></div></div>
       <div class="legend">
         <span><b class="hua h-lu">祿</b><b class="hua h-quan">權</b><b class="hua h-ke">科</b><b class="hua h-ji">忌</b> 生年四化</span>
-        <span><b class="hua o dec h-lu"><i>大</i>祿</b> 大限四化</span>
+        <span><b class="hua o dec h-lu"><i>大</i>祿</b> 大限四化（童限標「童」）</span>
         <span><b class="hua o yr h-ji"><i>年</i>忌</b> 流年四化</span>
+        <span><b class="hua o mo h-ke"><i>月</i>科</b> 流月四化</span>
+        <span><b class="hua o day h-quan"><i>日</i>權</b> 流日四化</span>
+        <span><span class="fst dec">運祿</span><span class="fst yr">流祿</span><span class="fst mo">月祿</span><span class="fst day">日祿</span> 大限、流年、流月、流日的流曜</span>
+        <span><span class="ly xiao">小限</span> 這一年的小限走到的宮</span>
         <span>亮度：廟 旺 得 利 平 不 陷</span>
+        <span>每格左下由上到下：十二長生、博士、歲前、將前；選了流年，歲前、將前的右邊是流年的</span>
         <span>點任一宮，紫底標出它的三方四正</span>
       </div>
     </div>
@@ -170,8 +207,9 @@
 
   <footer class="colophon">
     <div class="legend2"><span>採信標籤</span><span class="tag t-共識">共識</span><span>多數流派一致</span><span class="tag t-參考">參考</span><span>可用，要搭配全局</span><span class="tag t-存疑">存疑</span><span>僅作古籍閱讀，不主張使用。「不採」的項目不列出。</span></div>
-    <p>節氣、四柱與大運起運由 lunar-javascript 1.7.7 計算；紫微斗數由 iztro 2.6.3 安星（通行版星曜與亮度，閏月以十五日為界，四化庚干取陽武陰同、戊干取貪陰右機、壬干取梁紫左武）。十神、藏干、十二長生、納音、空亡、合沖刑害、神煞用本頁內建表格計算。</p>
-    <p>年柱、月柱依出生瞬間對照節氣時刻（UTC+8）判斷，日柱、時柱依排盤用時。紫微斗數的生年以正月初一分界，年干可能和八字年柱不同。天乙貴人採「甲戊庚牛羊」口訣，羊刃只列陽干。本頁只排盤，不解盤。</p>
+    <p>節氣、四柱與大運起運由 lunar-javascript 1.7.7 計算；紫微斗數的本命盤由 iztro 2.6.3 安星（通行版星曜與亮度）。四化版本、年界、閏月算法可以在「紫微斗數流派設定」裡換，預設是坊間通行的排法：四化戊干取貪陰右機、庚干取陽武陰同、壬干取梁紫左武，正月初一換年，閏月以十五日為界。十神、藏干、十二長生、納音、空亡、合沖刑害、神煞用本頁內建表格計算。</p>
+    <p>紫微的運限由本頁推算：大限以所在宮的宮干支起四化；第一個大限之前是童限，一歲命宮、二歲財帛、三歲疾厄、四歲夫妻、五歲福德；小限男順女逆、一歲一宮，寅午戌年生人從辰宮起、申子辰從戌、巳酉丑從未、亥卯未從丑；流年以流年地支所在的宮為命宮；流月用流年斗君，從流年命宮起正月逆數到生月、再順數到生時，就是正月，之後每月順行一宮；流日從流月命宮起初一，每日順行一宮。流曜是祿、羊、陀、魁、鉞、昌、曲、馬、鸞、喜十顆，依各層運限的干支安星，流年另有年解。流年以正月初一換年，流月、流日照農曆的月和日。</p>
+    <p>年柱、月柱依出生瞬間對照節氣時刻（UTC+8）判斷，日柱、時柱依排盤用時。紫微斗數的生年預設以正月初一分界，年干可能和八字年柱不同。天乙貴人採「甲戊庚牛羊」口訣，羊刃只列陽干。起運之前還沒有大運，只列流年，不另排小運。本頁只排盤，不解盤。</p>
   </footer>
 </main>
 

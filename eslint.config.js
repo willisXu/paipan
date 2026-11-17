@@ -3,7 +3,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 
-const libs = { Solar: 'readonly', Lunar: 'readonly', iztro: 'readonly' };
+const libs = { Solar: 'readonly', Lunar: 'readonly', LunarYear: 'readonly', iztro: 'readonly' };
 const rules = {
   'no-unused-vars': ['error', { caughtErrors: 'none' }],
   'no-shadow': 'error',
@@ -19,5 +19,5 @@ export default [
   { files: ['src/app/**'], languageOptions: { globals: { ...globals.browser, ...libs } } },
   { files: ['scripts/**', 'eslint.config.js'], languageOptions: { globals: globals.node } },
   // 測試在 Node 執行，但 page.evaluate 裡的函式是送到瀏覽器跑的，所以兩邊的全域變數都會出現
-  { files: ['test/**'], languageOptions: { globals: { ...globals.node, ...globals.browser, ...libs, LunarYear: 'readonly' } }, rules: { 'no-shadow': 'off' } },
+  { files: ['test/**'], languageOptions: { globals: { ...globals.node, ...globals.browser, ...libs } }, rules: { 'no-shadow': 'off' } },
 ];

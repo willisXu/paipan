@@ -73,8 +73,9 @@ section('交運日與流年的重疊（2,500 組，對函式庫的起運時刻�
   const flowYear = s => (sec(s) < lichun(s.getYear()) ? s.getYear() - 1 : s.getYear());
   // 起運時刻加 10k 年：同月同日同時刻，2 月 29 日遇平年取 2 月 28 日
   const plus = (s, years) => { const y = s.getYear() + years, leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; return Solar.fromYmdHms(y, s.getMonth(), s.getMonth() === 2 && s.getDay() === 29 && !leap ? 28 : s.getDay(), s.getHour(), s.getMinute(), s.getSecond()); };
-  const bad = { date: 0, span: 0, shared: 0, lib: 0, label: 0 };
+  const bad = { date: 0, span: 0, shared: 0, lib: 0, label: 0, pre: 0 };
   let early = 0, late = 0, n = 0;
+  const preLen = new Set();
   const check = (b, male) => {
     const inp = { ...b, clock: 'std', gender: male ? '男' : '女' }, bz = baziOf(inp); n++;
     const yun = Solar.fromYmdHms(b.y, b.m, b.d, b.h, b.mi, 0).getLunar().getEightChar().getYun(male ? 1 : 0, 2), start = yun.getStartSolar(), libDayun = yun.getDaYun(11).slice(1);
@@ -90,18 +91,31 @@ section('交運日與流年的重疊（2,500 組，對函式庫的起運時刻�
       if (dy.startYear !== from.getYear() || dy.startYear !== libDayun[k].getStartYear()) bad.label++;
       if (years[0] === dy.startYear - 1) early++; else late++;
     });
+    // 起運之前：從出生的那個流年（就是年柱那一年，虛歲 1 歲）列到起運當下的流年；標示的年、歲接在第一步運前面
+    const born = Solar.fromYmdHms(b.y, b.m, b.d, b.h, b.mi, 0), p = bz.pre, d0 = bz.dayun[0];
+    const want = []; for (let y = flowYear(born); y <= flowYear(start); y++) want.push(y);
+    preLen.add(want.length);
+    if (JSON.stringify(p.years.map(x => x.year)) !== JSON.stringify(want) || p.years.some((x, i) => x.age !== i + 1 || x.gz !== PP.yearGZ(x.year)) || p.years[0].gz !== bz.gz[0]
+      || p.years.at(-1).year !== d0.years[0].year || p.startDate !== ymd(born) || p.endDate !== d0.startDate || p.startDate > p.endDate
+      || p.startYear !== b.y || p.endYear !== Math.max(b.y, d0.startYear - 1) || p.startAge !== 1 || p.endAge !== Math.max(1, d0.startAge - 1)) bad.pre++;
   };
   for (let k = 0; k < 2500; k++) check(rndBirth(), k % 2 === 0);
   // 刻意補上交運時刻落在立春當天前後的盤：這種盤一步運可能重疊十個或十二個流年
   check({ y: 1960, m: 7, d: 19, h: 10, mi: 0 }, true);
   check({ y: 1960, m: 6, d: 25, h: 10, mi: 0 }, false);
-  eq(bad, { date: 0, span: 0, shared: 0, lib: 0, label: 0 }, `${n} 張盤的交運日、流年範圍、相鄰兩步共用的年、函式庫的流年、標示年，不一致的組數`);
+  eq(bad, { date: 0, span: 0, shared: 0, lib: 0, label: 0, pre: 0 }, `${n} 張盤的交運日、流年範圍、相鄰兩步共用的年、函式庫的流年、標示年、起運前那一段，不一致的組數`);
+  ok(preLen.has(1) && preLen.has(11), `起運前的流年從 1 個到 11 個都抽到了：${[...preLen].sort((x, y) => x - y).join('、')}`);
   ok(early > 1500 && late > 15000, `抽樣裡交運日在立春之前（第一個流年是標示年的前一年）有 ${early} 步、之後有 ${late} 步，兩種都要夠多`);
   // 兩張實際的盤：交運日在立春之前、之後各一
   const a = baziOf({ y: 1960, m: 7, d: 19, h: 10, mi: 0, gender: '男' }).dayun[5];
   eq([a.gz, a.startDate, a.endDate, a.startYear, a.endYear, a.years[0].year, a.years.at(-1).year, a.years.length], ['己丑', '2017-01-18', '2027-01-18', 2017, 2026, 2016, 2026, 11], '男 1960-07-19 10:00：己丑運 2017-01-18 交入（立春前），流年從 2016 到 2026，不含 2027');
   const c = baziOf({ y: 1960, m: 6, d: 25, h: 10, mi: 0, gender: '女' }).dayun[5];
   eq([c.gz, c.startDate, c.endDate, c.startYear, c.endYear, c.years[0].year, c.years.at(-1).year, c.years.length], ['丙子', '2016-12-06', '2026-12-06', 2016, 2025, 2016, 2026, 11], '女 1960-06-25 10:00：丙子運 2016-12-06 交入（立春後），流年從 2016 到 2026');
+  // 起運前：一般的盤、立春前出生的盤（第一個流年是出生那個公曆年的前一年）、出生第二天就起運的盤
+  const pre = o => { const q = baziOf(o).pre; return [q.startDate, q.endDate, q.startYear, q.endYear, q.startAge, q.endAge, q.years.map(x => x.year + x.gz).join(' ')]; };
+  eq(pre({ y: 1984, m: 11, d: 20, h: 14, mi: 0 }), ['1984-11-20', '1990-06-11', 1984, 1989, 1, 6, '1984甲子 1985乙丑 1986丙寅 1987丁卯 1988戊辰 1989己巳 1990庚午'], '教材範例盤：1990-06-11 起運，起運前列 1984 到 1990 年');
+  eq(pre({ y: 1985, m: 1, d: 15, h: 12, mi: 0 }).slice(0, 6).concat(baziOf({ y: 1985, m: 1, d: 15, h: 12, mi: 0 }).pre.years[0].year), ['1985-01-15', '1991-08-10', 1985, 1990, 1, 7, 1984], '立春前出生：標示從出生的 1985 年起，流年從年柱所屬的 1984 甲子年起');
+  eq(pre({ y: 1990, m: 2, d: 4, h: 10, mi: 30, gender: '女' }), ['1990-02-04', '1990-02-05', 1990, 1990, 1, 1, '1990庚午'], '出生第二天就起運：起運前只有出生那一年');
 }
 
 finish();

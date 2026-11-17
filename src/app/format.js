@@ -1,6 +1,6 @@
 /* 把輸入與排盤結果轉成顯示用文字的小函式，命主資訊、紫微中宮、文字盤共用。
    都是純函式：不碰 DOM，也不讀共用狀態。 */
-import { fmt, pad } from '../engine/index.js';
+import { fmt, pad, ZW_OPTIONS } from '../engine/index.js';
 import { SAMPLE } from './places.js';
 
 const signed1 = n => { const r = Math.round(n * 10) / 10; return (r < 0 ? '−' : '+') + Math.abs(r).toFixed(1); }; // 先取到一位小數再判正負，不出現「−0.0」
@@ -25,3 +25,15 @@ export function usedNotes(inp, rt) {
   if (z) notes.push(z);
   return notes;
 }
+
+// 紫微流派設定各個選項的短說明：中宮、文字盤、表單、存檔清單共用
+const ZW_LABEL = {
+  hua: { tongxing: '通行版四化', gengTongYin: '庚干陽武同陰', gengTongXiang: '庚干陽武同相', zhongzhou: '中州派四化' },
+  year: { lunar: '生年以正月初一為界', lichun: '生年以立春為界' },
+  leap: { mid: '閏月月中分界', current: '閏月算本月' },
+};
+const ZW_KEYS = ['hua', 'year', 'leap'];
+// 三項設定各一句，順序固定：四化版本、年界、閏月算法
+export const zwOptLabels = opts => ZW_KEYS.map(k => ZW_LABEL[k][opts[k]]);
+// 只列和預設（坊間通行的排法）不同的那幾項；全是預設就是空陣列
+export const zwOptChanges = opts => ZW_KEYS.filter(k => opts[k] !== ZW_OPTIONS[k][0]).map(k => ZW_LABEL[k][opts[k]]);

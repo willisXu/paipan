@@ -1,5 +1,5 @@
 /* 結構檢查：node test/engine/structure.test.js
-   守住模組化之後容易不知不覺被破壞的幾件事——匯出清單、相依方向、沒有循環、模組最上層沒有副作用。
+   守住模組化之後容易不知不覺被破壞的幾件事——匯出清單、相依方向、沒有循環、模組最上層沒有副作用；另外看發布流程的 action 有沒有釘版本。
    不需要瀏覽器，也不需要兩個曆法函式庫（這正是要驗的：沒有它們也要載入得起來）。 */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,8 +18,9 @@ const graph = new Map([...engineFiles, ...appFiles].map(f => [f, importsOf(f)]))
 
 console.log('■ 引擎對外介面');
 {
-  const expected = ['GAN', 'ZHI', 'WX', 'WX_KEY', 'CANG', 'SHICHEN', 'SIHUA', 'wxOf', 'yinyang', 'yearGZ', 'tenGod', 'changSheng', 'nayin', 'xunKong', 'jz', 'seasonOf', 'wangXiang',
-    'resolveTime', 'equationOfTime', 'zoneOffset', 'relations', 'shensha', 'strength', 'wuxingCount', 'bazi', 'ziwei', 'fmt', 'pad', 'fromMs', 'toMs', 'userError'];
+  const expected = ['GAN', 'ZHI', 'WX', 'WX_KEY', 'CANG', 'SHICHEN', 'SIHUA', 'ZW_OPTIONS', 'wxOf', 'yinyang', 'yearGZ', 'tenGod', 'changSheng', 'nayin', 'xunKong', 'jz', 'seasonOf', 'wangXiang',
+    'resolveTime', 'equationOfTime', 'zoneOffset', 'zoneDataCheck', 'relations', 'shensha', 'strength', 'wuxingCount', 'bazi', 'ziwei',
+    'zwSpans', 'zwDaXian', 'zwTongXian', 'zwXiaoXian', 'zwLiuNian', 'zwLiuYue', 'zwLiuRi', 'fmt', 'pad', 'fromMs', 'toMs', 'userError'];
   // 這時候全域沒有 Solar、Lunar、iztro：引擎模組的最上層不可以用到它們
   const engine = await import(pathToFileURL(path.join(root, 'src/engine/index.js')).href).catch(e => e);
   ok(!(engine instanceof Error), `沒有曆法函式庫時引擎也載入得起來${engine instanceof Error ? '：' + engine.message : ''}`);
@@ -64,6 +65,15 @@ console.log('■ 模組最上層沒有副作用');
   }
   const touched = ['document', 'window', 'Solar', 'Lunar', 'iztro'].filter(k => k in globalThis);
   ok(touched.length === 0, `載入過程沒有在全域留下東西${touched.length ? '：' + touched.join('、') : ''}`);
+}
+
+console.log('■ 發布流程');
+{
+  // GitHub Actions 用到的 action 要釘在確切的 commit（40 位的雜湊），後面註明是哪一版：版本號的標籤可以被改指到別的內容
+  const wf = fs.readFileSync(path.join(root, '.github/workflows/pages.yml'), 'utf8');
+  const uses = [...wf.matchAll(/^\s*(?:- )?uses:\s*(\S+)(.*)$/gm)].map(m => ({ ref: m[1], rest: m[2] }));
+  const loose = uses.filter(u => !/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/.test(u.ref) || !/#\s*v\d+\.\d+\.\d+/.test(u.rest));
+  ok(uses.length >= 4 && loose.length === 0, `發布流程的 ${uses.length} 個 action 都釘在 commit 並註明版本${loose.length ? '；沒釘的：' + loose.map(u => u.ref).join('、') : ''}`);
 }
 
 console.log(`\n${fail ? '✗' : '✓'} ${pass} 項通過，${fail} 項失敗`);

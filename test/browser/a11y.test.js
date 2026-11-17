@@ -18,10 +18,11 @@ const strip = s => s.replace(/[\s，]+/g, '');
 /* 要掃的畫面狀態：名稱 → 從剛載入的範例盤走到那個狀態的操作。時鐘固定在 2026-11-11。
    check：到了那個狀態之後，確認畫面真的是要掃的樣子（免得操作沒生效，掃到的其實是範例盤） */
 const STATES = [
-  ['範例盤的八字分頁', async () => {}, p => p.locator('#dayun .yun').count().then(n => n === 10)],
+  ['範例盤的八字分頁', async () => {}, p => p.locator('#dayun .yun').count().then(n => n === 11)],
   ['交運那一年的虛線框（交運日在立春之前）', p => born(p, '1960-07-19', '10:00'), p => p.locator('#liunian .yun.edge').count().then(n => n === 2)],
-  ['兩條提醒（重複的鐘面時間、時辰交界）', p => born(p, '1975-09-30', '23:05'), p => p.locator('#summary .warn').count().then(n => n === 2)],
-  ['還沒起運的盤', p => born(p, '2026-03-01', '10:00'), p => p.locator('#yunhead').innerText().then(t => t.includes('還沒起運'))],
+  ['三條提醒（重複的鐘面時間、時辰交界、晚子時換日）', p => born(p, '1975-09-30', '23:05'), p => p.locator('#summary .warn').count().then(n => n === 3)],
+  ['還沒起運的盤：選在起運前那一格', p => born(p, '2026-03-01', '10:00'), async p => (await p.locator('#yunhead').innerText()).includes('還沒起運') && await p.locator('#dayun [data-dy="-1"][aria-pressed=true] .now').count() === 1],
+  ['紫微分頁疊上童限與流年', async p => { await born(p, '2024-03-10', '10:00'); await p.locator('#t-ziwei').click(); await p.locator('#decs [data-dec="child"]').click(); }, async p => (await p.locator('#zw .ly.dec i').allInnerTexts()).join('') === '童'.repeat(12) && await p.locator('#zw .ly.yr').count() === 12],
   ['紫微分頁的本命盤', p => p.locator('#t-ziwei').click(), p => p.locator('#zw .cell').count().then(n => n === 12)],
   ['紫微分頁疊上大限與流年', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs .chip2.cur').click(); }, p => p.locator('#zw .ly.yr').count().then(n => n === 12)],
   ['輸入有錯、上一張盤變淡', async p => { await p.locator('label:has(#c-l)').click(); await setVal(p, '#ly', '2101'); }, async p => await p.locator('#err').isVisible() && await p.locator('main.stale').count() === 1],
@@ -29,6 +30,14 @@ const STATES = [
   // 以下兩個是為了量對比：五行色、四化色落在「選取」的底色上
   ['選到交運那一年（虛線框加選取底色）', async p => { await born(p, '1960-07-19', '10:00'); await p.locator('#liunian .yun').first().click(); }, p => p.locator('#liunian .yun.edge[aria-pressed=true]').count().then(n => n === 1)],
   ['紫微換一個大限、換一個宮', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs .chip2').nth(3).click(); await p.locator('#zw .pn').nth(4).click(); }, p => p.locator('#zw .cell.sel .ly.dec').count().then(n => n === 1)],
+  // 四層運限全疊上：流月、流日的顏色落在一般的宮、選取的宮、三方四正的底色上
+  ['紫微疊到今天（大限、流年、流月、流日、小限）', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs [data-today]').click(); }, async p => await p.locator('#zw .ly.day').count() === 12 && await p.locator('#zw .ly.xiao').count() === 1 && await p.locator('#zw .fst').count() === 41],
+  ['閏月的流月下半、選一天、換一個宮', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs .chip2', { hasText: '33–42 歲' }).click(); await p.locator('#yrs [data-yr="2025"]').click(); await p.locator('#mos [data-mo="7"]').click(); await p.locator('#days [data-day="20"]').click(); await p.locator('#zw .pn').nth(9).click(); },
+    async p => await p.locator('#days .chip2').count() === 14 && await p.locator('#zw .cell.sel .ly.day').count() === 1],
+  ['流派設定打開，改成中州派、立春年界、閏月算本月', async p => { await p.locator('#zopts summary').click(); await p.locator('#zhua').selectOption('zhongzhou'); await p.locator('#zyear').selectOption('lichun'); await p.locator('#zleap').selectOption('current'); await p.locator('#t-ziwei').click(); },
+    async p => await p.locator('#zopts[open]').count() === 1 && (await p.locator('#zopts-now').innerText()) === '目前：中州派四化、生年以立春為界、閏月算本月'],
+  ['立春當天交節之前：紫微年界的提醒', async p => { await p.locator('#zopts summary').click(); await p.locator('#zyear').selectOption('lichun'); await born(p, '1984-02-04', '10:00'); },
+    async p => (await p.locator('#summary .warn').allInnerTexts()).some(t => t.startsWith('紫微的年界設成立春'))],
 ];
 const ENVS = [
   ['淺色桌機', {}],
@@ -103,16 +112,19 @@ const lowContrastFields = () => {
     await born(page, '1960-07-19', '10:00'); // 己丑運 2017-01-18 到 2027-01-18，目前就在這步運
     /* 大運、流年的按鈕不另外給 aria-label，名稱直接取自內容：
        以前另外寫的標籤漏了十神和「今」，讀屏的使用者聽不到，語音操作也沒辦法照著看到的字點 */
-    for (const [id, n] of [['#dayun', 10], ['#liunian', 11]]) {
+    for (const [id, n] of [['#dayun', 11], ['#liunian', 11]]) {
       const names = await buttonNames(page.locator(id));
-      const shown = await page.locator(`${id} .yun`).evaluateAll(els => els.map(e => (e.hasAttribute('aria-label') ? '有 aria-label' : e.innerText)));
+      // 按鈕裡給人看的字：純裝飾、標了 aria-hidden 的不算（起運前那一格佔位用的橫線）
+      const shown = await page.locator(`${id} .yun`).evaluateAll(els => els.map(e => { if (e.hasAttribute('aria-label')) return '有 aria-label'; const c = e.cloneNode(true); c.querySelectorAll('[aria-hidden=true]').forEach(x => x.remove()); return c.textContent; }));
       ok(names.length === n && names.every((name, i) => name === strip(shown[i])), `${id} 的 ${n} 個按鈕：名稱就是按鈕裡的字。${names[0]}`);
     }
     const dy = await buttonNames(page.locator('#dayun')), ln = await buttonNames(page.locator('#liunian'));
-    ok(dy[5] === '今劫財己丑劫財2017–2658–67歲' && dy.filter(x => x.startsWith('今')).length === 1, `目前這步運唸得到「今」、十神、干支、起訖年與歲數：${dy[5]}`);
+    ok(dy[6] === '今劫財己丑劫財2017–2658–67歲' && dy.filter(x => x.startsWith('今')).length === 1, `目前這步運唸得到「今」、十神、干支、起訖年與歲數：${dy[6]}`);
+    ok(dy[0] === '起運前還沒有大運干支1960–661–7歲', `起運前那一格沒有干支，畫面上是兩道橫線，讀屏唸「還沒有大運干支」：${dy[0]}`);
     ok(ln[0] === '偏印丙申食神201657歲約2017-01-18交入這步運' && ln[10] === '今偏印丙午正印202667歲約2027-01-18交出這步運' && ln[5] === '傷官辛丑劫財202162歲',
       `流年：頭尾兩年（畫面上是虛線框）唸得到交運日，中間的年份不加：${ln[0]}｜${ln[5]}｜${ln[10]}`);
     ok(await page.locator('#liunian .vh').evaluateAll(els => els.length === 2 && els.every(e => { const r = e.getBoundingClientRect(); return r.width <= 1 && r.height <= 1; })), '只給讀屏的那兩段字在畫面上不佔位置');
+    ok(await page.locator('#live').evaluate(e => { const r = e.getBoundingClientRect(); return e.getAttribute('role') === 'status' && r.width <= 1 && r.height <= 1 && e.textContent.startsWith('已排盤：'); }), '排盤完成的通知是給讀屏聽的狀態訊息，畫面上不佔位置');
 
     // 紫微的宮名按鈕另外補了干支和三方四正的角色，所以有 aria-label；它要以按鈕上看得到的字開頭（身宮多一個「身」）
     await page.locator('#t-ziwei').click();
@@ -121,6 +133,33 @@ const lowContrastFields = () => {
     ok(pal.length === 12 && pal.every((x, i) => strip(x.label).startsWith(strip(x.shown)) && strip(names[i]) === strip(x.label)), `十二個宮名按鈕的名稱都以看得到的字開頭：${pal.map(x => x.label).join('｜')}`);
     const body = pal.filter(x => x.shown.includes('身'));
     ok(body.length === 1 && /^.{2}，身宮，..宮/.test(body[0].label), `身宮的按鈕：${body.map(x => x.label).join()}`);
+    // 運限列四排的籤也不另外給 aria-label：名稱就是籤上的字（今、日期、月日、干支）
+    await born(page, '1984-11-20', '14:00');
+    await page.locator('#decs [data-today]').click();
+    for (const [id, n] of [['#decs', 13], ['#yrs', 10], ['#mos', 12], ['#days', 30]]) {
+      const got = await buttonNames(page.locator(id));
+      const shown = await page.locator(`${id} button`).evaluateAll(els => els.map(e => (e.hasAttribute('aria-label') ? '有 aria-label' : e.textContent)));
+      ok(got.length === n && got.every((name, i) => name === strip(shown[i])), `${id} 的 ${n} 個籤：名稱就是籤上的字。${got.filter(x => x.startsWith('今')).join('、')}`);
+    }
+    ok((await buttonNames(page.locator('#decs')))[1] === '看今天' && await page.locator('#zopts summary').evaluate(e => e.textContent.replace(/\s+/g, '')) === '紫微斗數流派設定目前都是預設（坊間通行的排法）', '「看今天」的按鈕和流派設定的標題，名稱就是看得到的字');
+    ok(errors.length === 0, `無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+
+  /* 手機上用手指點的東西不能太小（WCAG 2.5.8：24×24 以上）。紫微的宮名按鈕例外：整個宮格都可以點，按鈕只是給鍵盤和讀屏用的 */
+  section('手機版可點的目標夠大');
+  {
+    const { ctx, page, errors } = await openPage(browser, harness, { context: { viewport: { width: 390, height: 844 } } });
+    await page.locator('#nm').fill('王小明'); await page.locator('#save').click();
+    const small = () => page.evaluate(() => [...document.querySelectorAll('button, select, summary, input:not([type=radio]):not([type=checkbox]), .seg label, label.check')]
+      .filter(e => e.getClientRects().length && !e.matches('.pn')).map(e => { const r = e.getBoundingClientRect(); return { what: (e.id || e.className || e.tagName) + '「' + (e.innerText || '').trim().slice(0, 4) + '」', w: Math.round(r.width), h: Math.round(r.height) }; })
+      .filter(x => x.w < 24 || x.h < 24).map(x => `${x.what} ${x.w}×${x.h}`));
+    const bz = await small();
+    await page.locator('#zopts summary').click();
+    await page.locator('#t-ziwei').click(); await page.locator('#decs [data-today]').click(); // 四排運限的籤都出來
+    const zw = await small();
+    ok(await page.locator('#saved [data-del]').count() === 1 && await page.locator('#days .chip2').count() === 30 && await page.locator('#zhua').isVisible() && !bz.length && !zw.length,
+      `八字、紫微兩個分頁（含已存的盤的刪除鈕、流派設定、流月流日的籤）沒有小於 24px 的目標${bz.concat(zw).length ? '：' + bz.concat(zw).join('、') : ''}`);
     ok(errors.length === 0, `無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
     await ctx.close();
   }

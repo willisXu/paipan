@@ -11,5 +11,5 @@ export const PLACES = [
 export const PLACE = new Map(PLACES.flatMap(([, list]) => list.map(([n, lon, tz, zone]) => [n, { lon, tz, zone }])));
 export const LM = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 export const LD = [...'一二三四五六七八九十'].map(c => '初' + c).concat([...'一二三四五六七八九'].map(c => '十' + c), '二十', [...'一二三四五六七八九'].map(c => '廿' + c), '三十');
-// 教材範例盤：1984-11-20 14:00 男命，未經真太陽時校正
-export const SAMPLE = { name: '', gender: '男', calendar: 'solar', y: 1984, m: 11, d: 20, h: 14, mi: 0, place: '台北', clock: 'auto', useTST: false, ziRule: 'next' };
+// 教材範例盤：1984-11-20 14:00 男命，未經真太陽時校正；紫微的流派設定用預設值（坊間通行的排法）
+export const SAMPLE = { name: '', gender: '男', calendar: 'solar', y: 1984, m: 11, d: 20, h: 14, mi: 0, place: '台北', clock: 'auto', useTST: false, ziRule: 'next', zwHua: 'tongxing', zwYear: 'lunar', zwLeap: 'mid' };

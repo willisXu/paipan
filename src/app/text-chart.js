@@ -2,7 +2,9 @@
 import { fmt, SHICHEN, yinyang } from '../engine/index.js';
 import { $, toast } from './dom.js';
 import { S } from './state.js';
-import { dur, fmtOff, nameOf, placeLabel, usedNotes } from './format.js';
+import { dur, fmtOff, nameOf, placeLabel, usedNotes, zwOptLabels } from './format.js';
+import { warningsOf } from './summary.js';
+import { layers } from './view-ziwei.js';
 
 function textChart() {
   const { inp, rt, bz, zw, c } = S, ps = bz.pillars, lines = [];
@@ -23,10 +25,31 @@ function textChart() {
   const ming = c.palaces.find(p => p.name === '命宮');
   lines.push(`【紫微斗數】${c.fiveElementsClass}\u3000命主 ${c.soul}\u3000身主 ${c.body}\u3000命宮 ${ming.heavenlyStem}${ming.earthlyBranch}\u3000身宮在${c.palaces.find(p => p.isBodyPalace).name}`);
   lines.push(`起盤：${zw.dateUsed} ${SHICHEN[rt.hourIndex]}時\u3000農曆 ${zw.lunarText}\u3000生年 ${c.rawDates.chineseDate.yearly.join('')}`);
+  lines.push(`流派設定：${zwOptLabels(zw.opts).join('、')}`);
+  lines.push('各宮依序：主星｜輔星｜雜曜｜十二長生、博士、歲前、將前');
   const f = s => s.name + (s.brightness || '') + (s.mutagen ? '化' + s.mutagen : '');
-  [...c.palaces].sort((a, b) => ((a.index - ming.index + 12) % 12) - ((b.index - ming.index + 12) % 12)).forEach(p => {
-    lines.push(`${p.name}${p.isBodyPalace ? '(身)' : ''} ${p.heavenlyStem}${p.earthlyBranch}［${p.decadal.range[0]}–${p.decadal.range[1]}］：${p.majorStars.map(f).join(' ') || '無主星'}｜${p.minorStars.map(f).join(' ') || '—'}｜${p.adjectiveStars.map(s => s.name).join(' ') || '—'}`);
+  const ordered = [...c.palaces].sort((a, b) => ((a.index - ming.index + 12) % 12) - ((b.index - ming.index + 12) % 12));
+  ordered.forEach(p => {
+    lines.push(`${p.name}${p.isBodyPalace ? '(身)' : ''} ${p.heavenlyStem}${p.earthlyBranch}［${p.decadal.range[0]}–${p.decadal.range[1]}］：${p.majorStars.map(f).join(' ') || '無主星'}｜${p.minorStars.map(f).join(' ') || '—'}｜${p.adjectiveStars.map(s => s.name).join(' ') || '—'}｜${p.changsheng12} ${p.boshi12} ${p.suiqian12} ${p.jiangqian12}`);
   });
+  // 紫微分頁上疊了運限的話，把疊的那幾層也寫出來
+  const L = layers();
+  if (L) {
+    const at = layer => `${c.palaces[layer.index].name}（${c.palaces[layer.index].earthlyBranch}宮）`; // 這一層的命宮落在本命的哪一宮
+    const hua = layer => layer.hua.map((n, k) => n + '化' + '祿權科忌'[k]).join('、');
+    const stars = layer => layer.stars.map((list, i) => (list.length ? `${list.join('、')}在${c.palaces[i].name}` : '')).filter(Boolean).join('，');
+    const one = (head, layer) => `${head}，命宮在本命${at(layer)}：${hua(layer)}。流曜：${stars(layer)}`;
+    lines.push('', '【紫微運限】');
+    if (L.dec) lines.push(one(L.dec.child ? `童限 ${L.age} 歲 ${L.dec.gz}` : `大限 ${L.dec.ages.join('–')} 歲 ${L.dec.gz}`, L.dec));
+    if (L.yr) lines.push(one(`流年 ${L.yr.year} ${L.yr.gz}（${L.age} 歲）`, L.yr));
+    if (L.yr) lines.push(`流年歲前、將前：${ordered.map(p => `${p.name} ${L.yr.sui12[p.index]}、${L.yr.jiang12[p.index]}`).join('；')}`);
+    if (L.xiao) lines.push(`小限 ${L.age} 歲 ${L.xiao.gz}，在本命${at(L.xiao)}：${hua(L.xiao)}`);
+    if (L.mo) lines.push(one(`流月 ${L.mo.label} ${L.mo.gz}（${L.mo.from} 到 ${L.mo.to}）`, L.mo));
+    if (L.day) lines.push(one(`流日 ${L.day.label} ${L.day.gz}（${L.day.date}）`, L.day));
+  }
+  // 頁面上要使用者複核的提醒也帶著走：文字盤常常是單獨貼給別人看的
+  const warns = warningsOf(S);
+  if (warns.length) lines.push('', '【提醒】', ...warns.map(w => '・' + w));
   return lines.join('\n');
 }
 
