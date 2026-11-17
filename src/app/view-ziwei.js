@@ -118,7 +118,8 @@ function centerCell(L) {
   const yearNote = zw.opts.year !== 'lichun'
     ? (zw.yearGZ !== bz.gz[0] ? `以正月初一分界；八字年柱以立春分界，為${bz.gz[0]}` : '')
     : [zw.yearGZ !== lunarGZ ? `以立春分界；照正月初一是${lunarGZ}年` : '', zw.yearGZ !== bz.gz[0] ? `立春以日為單位換年；八字年柱看交節的時刻，為${bz.gz[0]}` : ''].filter(Boolean).join('。');
-  let yunLine = '<span class="muted">目前是本命盤。點上方的大限、流年、流月、流日，一層一層疊上運限的宮名、四化和流曜。</span>';
+  // 教人怎麼點的那一句只在畫面上（class="so"）；印在紙上只留「目前是本命盤。」
+  let yunLine = '<span class="muted">目前是本命盤。<span class="so">點上方的大限、流年、流月、流日，一層一層疊上運限的宮名、四化和流曜。</span></span>';
   if (L) {
     const at = layer => c.palaces[layer.index].name; // 這一層的命宮落在本命的哪一宮
     const lines = [];

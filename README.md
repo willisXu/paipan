@@ -12,7 +12,7 @@ npx playwright install --only-shell chromium   # 瀏覽器測試用的 Chromium�
 npm run build          # 輸出 dist/site/index.html 與 dist/paipan.html
 npm run lint
 npm test               # 引擎測試，不需要瀏覽器，約 2 分鐘
-npm run test:browser   # build 後跑瀏覽器測試，約 3 分鐘
+npm run test:browser   # build 後跑瀏覽器測試，約 4 分鐘
 npm run check          # lint → build → 全部測試。推上去之前跑這個
 node scripts/paipan.js --help                  # 命令列排盤，見下面「命令列」
 ```
@@ -22,9 +22,10 @@ node scripts/paipan.js --help                  # 命令列排盤，見下面「�
 build 的輸出在 `dist/`，不進版本庫：
 
 - `dist/site/`：完整的網站，整個資料夾放上任何靜態主機就能用，線上版就是它。`index.html` 加上 `lib/` 裡的兩個函式庫檔與授權條款；
-  函式庫和網頁放在一起，不連 CDN（少一個外部相依，CDN 連不上的地方也能用）。
+  函式庫和網頁放在一起，不連 CDN（少一個外部相依，CDN 連不上的地方也能用）。有列印按鈕。
 - `dist/paipan.html`：同一個頁面的單檔版本，不含 `<html>`、`<head>` 外層，給會自己補外層的發布環境用；函式庫從 jsDelivr 載入。
-  大部分瀏覽器測試測的是這個檔，`site.test.js` 測的是 `dist/site/`。
+  沒有列印按鈕：那種環境把頁面放在檢視框裡，開不了列印對話框。
+  大部分瀏覽器測試測的是這個檔，`site.test.js`、`print.test.js` 測的是 `dist/site/`。
 
 ## 發布
 
@@ -77,12 +78,13 @@ src/app/            頁面程式
   state.js            共用狀態、「今年」與「今天」
   form.js / saved.js  表單讀寫（inputFrom() 不碰 DOM，命令列共用）；存在瀏覽器的盤
   summary.js / view-bazi.js / view-ziwei.js / text-chart.js   各區塊的繪製
+  print.js            列印的兩顆按鈕、紙上頁尾的那一行（版面在 styles.css 最後的 @media print）
   dom.js / format.js / places.js / tabs.js                    小工具、文字格式、地名表、分頁
-scripts/build.js    用 esbuild 打包 src/app/main.js，連同樣式內嵌進骨架
+scripts/build.js    用 esbuild 打包 src/app/main.js，連同樣式內嵌進骨架；只有網站版才有的區塊（@SITE）在單檔版拿掉
 scripts/paipan.js   命令列排盤：印出和「複製文字盤」相同的文字盤
 test/run.js         執行器：引擎測試平行跑，瀏覽器測試一次一支
 test/engine/        引擎驗算（獨立公式、對函式庫）、引擎輸出快照、結構檢查、命令列
-test/browser/       冒煙、表單、盤面與退路、無障礙、網站版、亂點、畫面對引擎、命令列對畫面、畫面快照
+test/browser/       冒煙、表單、盤面與退路、無障礙、網站版、列印、亂點、畫面對引擎、命令列對畫面、畫面快照
 test/helpers/       共用：斷言、亂數、載入函式庫、瀏覽器
 test/snapshots/     兩個快照基準檔
 ```
@@ -100,7 +102,14 @@ test/snapshots/     兩個快照基準檔
 - **輸入檢查以引擎為準**（日期存不存在、年份範圍、性別）。頁面只擋「沒填、格式不對」，不另外寫一份範圍，免得兩邊說法不同。
 - **模組最上層不可有副作用**（不碰 DOM、不用函式庫）。CDN 掛掉時要能顯示錯誤訊息，而所有模組的最上層都比 `main.js` 的檢查早執行。
 - 相依方向：頁面 → 引擎的 `index.js`；引擎不認得頁面；不可有循環。以上三條由 `test/engine/structure.test.js` 檢查。
-- 深色配色在 `styles.css` 寫兩次（跟隨系統、使用者指定），兩段必須相同，`build.js` 會擋。
+- 深色配色在 `styles.css` 寫兩次（跟隨系統、使用者指定），兩段必須相同，`build.js` 會擋。兩段都包在 `@media screen` 裡：印出來一律是淺色。
+- **只有網站版才有的內容**，在 `src/index.html` 裡用 `<!--@SITE-->`、`<!--@/SITE-->` 各佔一行包起來（目前是列印按鈕和它的說明），
+  `build.js` 在單檔版整段拿掉。要開瀏覽器對話框、要下載檔案的功能，單檔版的檢視框做不到，一律放在這種區塊裡。
+- **列印版面**寫在 `styles.css` 最後的 `@media print`。只在畫面上有意義的句子（教人怎麼點）加 `class="so"`，只印在紙上的加 `class="po"`。
+  整頁的縮放比例和十二宮的列高是量出來的，目標是 A4 直式上八字兩頁、紫微本命盤連同所選宮位的說明一頁。
+  動了版面，除了跑 `node test/run.js print`，要實際印成 PDF 看（`page.pdf()`），並多排幾張隨機的盤數頁數。
+- **不用直排（`writing-mode`）排字**。直排時每個字佔多高靠的是字型自己帶的直排資料，沒有的字型（例如文泉驛正黑）會把字全部疊在一起。
+  紫微的星名、宮干支用「寬度只夠放一個字、一字一換行」，什麼字型都排得出來。`chart.test.js` 會擋。
 - 無障礙：按鈕的名稱要包含按鈕上看得到的字（能不寫 `aria-label` 就不寫）；文字對比 4.5:1、輸入欄位外框 3:1；
   手指點的目標至少 24×24；排盤完成要讓讀屏聽得到（`#live`）。
   命盤上的字有五行色、四化色，底色又有好幾種，改顏色後跑 `node test/run.js a11y` 確認。
@@ -129,6 +138,7 @@ test/snapshots/     兩個快照基準檔
 | 冒煙、表單、盤面 | 頁面操作起來對不對 |
 | 無障礙 | axe-core 掃描有沒有違規；文字與欄位外框的對比夠不夠；讀屏唸的和畫面上的字一不一致；手機上的目標夠不夠大 |
 | 網站版 | `dist/site/` 用本機伺服器送出來能不能排盤、有沒有去連 CDN、函式庫檔被換掉會不會被擋、是不是結構完整的網頁 |
+| 列印 | 列印樣式下（A4、B5、A5 直式）版面有沒有超出紙、不該印的有沒有藏起來、深色模式印出來是不是淺色；印成 PDF 是幾頁；按鈕是不是只有網站版有 |
 | 亂點 | 固定種子隨便填、隨便點幾百步，頁面會不會丟例外、盤面會不會壞掉 |
 | 畫面對引擎 | 隨機排幾十張盤、隨機點運限與宮位，畫面上每一格和引擎用同一組輸入算出來的結果逐項比對 |
 | 命令列 | 命令列印的文字盤和頁面「複製文字盤」是否逐字相同（本命盤、看今天、八字運限對畫面上標「今」的那幾格）；參數與錯誤訊息；`--at` 選到的運限另外算一次；換執行環境的時區輸出不變 |
@@ -144,6 +154,7 @@ node scripts/build.js && node test/browser/snapshot.test.js --update
 快照會用到執行環境的時區歷史資料；換了 Node 或 Chromium 版本後若只有歷史時區的盤不同，先查是不是資料更新。
 
 寫測試時：亂數一律用 `test/helpers/random.js` 的 mulberry32（理由寫在該檔）；瀏覽器測試的時鐘固定在 2026-11-11。
+測試機上的字型和使用者的不一樣（頁面的字型從 Google Fonts 載入，測試時擋掉、改用系統字型），所以量版面的檢查要留餘裕，不要釘死到 1px。
 
 ## 排盤立場
 

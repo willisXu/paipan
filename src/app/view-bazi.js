@@ -142,9 +142,9 @@ function renderDayun() {
     hint: k === last ? (pre ? `約 ${D.endDate} 起運` : `約 ${D.endDate} 交出這步運`) : k === 0 && !pre ? `約 ${D.startDate} 交入這步運` : '',
   })).join('');
   /* 流月：選到的那個流年裡的十二個節氣月（流年以立春換年，十二個月正好鋪滿）。「今」以日為單位：交節當天就算新的月。
-     讀屏另外聽得到完整的交節時刻 */
+     讀屏另外聽得到完整的交節時刻。標題裡教人怎麼點的那半句只在畫面上（class="so"），印在紙上沒有意義 */
   const Y = yunSel(bz, S.dy, S.ln, S.lm), { N, M } = Y;
-  $('#lm-title').innerHTML = `${N.year} ${N.gz}年的流月 <small>十二個節氣月，每個月從交節的那一刻起算。點一個月，下面的關係多列一柱流月；再點一次取消</small>`;
+  $('#lm-title').innerHTML = `${N.year} ${N.gz}年的流月 <small>十二個節氣月，每個月從交節的那一刻起算。<span class="so">點一個月，下面的關係多列一柱流月；再點一次取消</span></small>`;
   $('#liuyue').innerHTML = Y.months.map(m => yunBtn({
     top: m.ganGod, gz: m.gz, bottom: m.zhiGod, y: m.jie, a: `${monthDay(m.from)} 起`,
     pressed: m.k === S.lm, now: isThisMonth(m), data: `data-lm="${m.k}"`, hint: `${m.from} ${m.time} 交${m.jie}`,

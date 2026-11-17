@@ -11,6 +11,7 @@ import { initBaziView } from './view-bazi.js';
 import { initZiweiView } from './view-ziwei.js';
 import { initTabs, setTab } from './tabs.js';
 import { initTextChart } from './text-chart.js';
+import { initPrint } from './print.js';
 import { initSaved, renderSaved } from './saved.js';
 import { initRun, run } from './run.js';
 
@@ -34,6 +35,7 @@ function start() {
   initZiweiView();
   initTabs();
   initTextChart();
+  initPrint();
   initSaved();
   initRun();
 

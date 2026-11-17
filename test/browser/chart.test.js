@@ -341,6 +341,33 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     await ctx.close();
   }
 
+  section('星名、宮干支由上往下一字一行，不靠字型的直排資料');
+  {
+    /* 星名本來用直排（writing-mode）排。直排時每個字佔多高，靠的是字型自己帶的直排資料；沒有這份資料的字型（例如文泉驛正黑）
+       每個字的高度是 0，整個星名疊成一團。現在改成「寬度只夠放一個字，一字一換行」，什麼字型都排得出來。
+       這裡量的是實際排出來的大小：星名的高度 = 字數 × 字的大小。裝著會出問題的字型的機器（CI 就是），這一段直接擋得住；
+       其他機器上兩種排法量起來一樣，所以另外確認沒有用回直排。 */
+    const { ctx, page, errors } = await open(browser);
+    await page.locator('#t-ziwei').click();
+    await page.locator('#decs [data-today]').click(); // 疊到流日：星名底下有「大祿」「年忌」這種兩個字的四化
+    const m = await page.evaluate(() => {
+      const box = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return { w: r.width, h: r.height, top: r.top, bottom: r.bottom, size: parseFloat(cs.fontSize), mode: cs.writingMode, text: el.textContent }; };
+      const names = [...document.querySelectorAll('#zw .st .n')].map(box), gz = [...document.querySelectorAll('#zw .gzv')].map(box);
+      const two = [...document.querySelectorAll('#zw .st .hua.o')].map(el => ({ ...box(el), i: box(el.querySelector('i')) }));
+      const order = [...document.querySelectorAll('#zw .st')].every(st => { const kids = [...st.children].map(box); return kids.every((k, j) => j === 0 || k.top >= kids[j - 1].bottom - 0.5); });
+      return { names, gz, two, order };
+    });
+    const tall = b => Math.abs(b.h - b.text.length * b.size) <= 1 && b.w <= b.size * 1.2;
+    const badNames = m.names.filter(b => !tall(b)).map(b => `${b.text} ${b.w.toFixed(1)}×${b.h.toFixed(1)}`);
+    ok(m.names.length > 60 && badNames.length === 0, `${m.names.length} 個星名，每個的高度都是「字數 × 字的大小」、寬度一個字：${badNames.slice(0, 5).join('、') || '沒有例外'}`);
+    ok(m.gz.length === 12 && m.gz.every(tall), `十二宮的宮干支上下兩個字：${m.gz.filter(b => !tall(b)).map(b => `${b.text} ${b.w}×${b.h}`).join('、') || '都對'}`);
+    ok(m.two.length >= 8 && m.two.every(b => b.w <= 16 && b.h >= b.i.size + b.size), `疊上去的四化（「大祿」「年忌」）也是上下兩個字，共 ${m.two.length} 個`);
+    ok(m.order, '每顆星由上到下是星名、亮度、四化，沒有重疊');
+    ok([...m.names, ...m.gz].every(b => b.mode === 'horizontal-tb'), '沒有用直排（writing-mode）：不靠字型的直排資料');
+    ok(errors.length === 0, `無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+
   section('紫微流派設定：四化版本、年界、閏月算法');
   {
     const { ctx, page, errors } = await open(browser, { init: [blockClipboard] });

@@ -10,7 +10,8 @@
   --f-display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", serif;
   --f-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
-@media (prefers-color-scheme: dark) {
+/* 深色只用在螢幕上（兩段都包在 screen 裡）：印在紙上一律是上面那組淺色 */
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #0F1418; --sheet: #161D23; --ink: #E5EAEC; --ink-2: #A3AEB5; --ink-3: #8A959D;
     --rule: #26313A; --rule-2: #3E4B55; --field-line: #687680;
@@ -22,15 +23,17 @@
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
-  --paper: #0F1418; --sheet: #161D23; --ink: #E5EAEC; --ink-2: #A3AEB5; --ink-3: #8A959D;
-  --rule: #26313A; --rule-2: #3E4B55; --field-line: #687680;
-  --accent: #C9B0DF; --accent-ink: #1A1320; --accent-soft: #272030; --accent-line: #4E3F5E;
-  --wood: #6CC28E; --fire: #F2806F; --earth: #CDA680; --metal: #E8BE55; --water: #78AEEC;
-  --lu: #6CC28E; --quan: #F2A35E; --ke: #7FB2F2; --ji: #F47E70; --hua-ink: #0F1418;
-  --lay-dec: #C9B0DF; --lay-yr: #5FCAD3; --lay-mo: #E3B25A; --lay-day: #F29BC4;
-  --warn: #F1C47A; --warn-bg: #2E2415; --err: #F69A8E; --err-bg: #34191A;
-  color-scheme: dark;
+@media screen {
+  :root[data-theme="dark"] {
+    --paper: #0F1418; --sheet: #161D23; --ink: #E5EAEC; --ink-2: #A3AEB5; --ink-3: #8A959D;
+    --rule: #26313A; --rule-2: #3E4B55; --field-line: #687680;
+    --accent: #C9B0DF; --accent-ink: #1A1320; --accent-soft: #272030; --accent-line: #4E3F5E;
+    --wood: #6CC28E; --fire: #F2806F; --earth: #CDA680; --metal: #E8BE55; --water: #78AEEC;
+    --lu: #6CC28E; --quan: #F2A35E; --ke: #7FB2F2; --ji: #F47E70; --hua-ink: #0F1418;
+    --lay-dec: #C9B0DF; --lay-yr: #5FCAD3; --lay-mo: #E3B25A; --lay-day: #F29BC4;
+    --warn: #F1C47A; --warn-bg: #2E2415; --err: #F69A8E; --err-bg: #34191A;
+    color-scheme: dark;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -49,7 +52,7 @@ h1 { margin: 0; font: 700 23px/1.25 var(--f-display); letter-spacing: .06em; tex
 .masthead p { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); }
 
 main { display: grid; gap: 18px; padding-block: 20px 40px; }
-main > *, .panel > *, .two > * { min-width: 0; }
+main > *, .panel > *, .bz-top > *, .two > * { min-width: 0; }
 
 /* 生辰帖 */
 .birth { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
@@ -116,9 +119,10 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .tabs { display: flex; gap: 4px; }
 .tab { border: 0; background: none; padding: 8px 14px 9px; font: 400 19px var(--f-display); color: var(--ink-2); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
 .tab[aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 700; }
-.tabtools { display: flex; gap: 6px; padding-bottom: 6px; }
+.tabtools { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 6px; }
 
-.panel { display: grid; gap: 18px; }
+/* .bz-top 把四柱和旺衰、五行字數包在一起：畫面上照舊由上往下排，印在紙上時左右並排（見最後的列印樣式） */
+.panel, .bz-top { display: grid; gap: 18px; }
 .card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; }
 .card > h2 { margin: 0 0 12px; font: 700 18px/1.3 var(--f-display); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; text-wrap: balance; }
 .card > h2 small { font: 400 13px var(--f-body); color: var(--ink-2); }
@@ -247,9 +251,11 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .cell.sel { box-shadow: inset 0 0 0 2px var(--accent); }
 .rolemark { margin-left: auto; align-self: center; font-size: 11px; color: var(--accent); letter-spacing: .1em; white-space: nowrap; }
 .stars { display: flex; flex-wrap: wrap; gap: 6px 3px; align-items: flex-start; align-content: flex-start; flex: 1; }
-.st { writing-mode: vertical-rl; text-orientation: upright; display: inline-flex; align-items: center; gap: 2px; line-height: 1.04; white-space: nowrap; flex: none; }
-.st > * { flex: none; } /* 星名、亮度、四化都不壓縮：格子不夠高就讓整列長高，不讓直排字換欄 */
-.st .n { font-family: var(--f-display); }
+/* 星名由上往下一字一行，下面接亮度和四化。不用直排（writing-mode）：直排時每個字佔多高，靠的是字型自己帶的直排資料，
+   有些字型沒有（例如文泉驛正黑），字就全部疊在同一個位置。這裡把寬度定成只夠放一個字，讓它一字一換行，什麼字型都排得出來 */
+.st { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; flex: none; }
+.st > * { flex: none; } /* 星名、亮度、四化都不壓縮：格子不夠高就讓整列長高 */
+.st .n { font-family: var(--f-display); width: 1.04em; text-align: center; word-break: break-all; }
 .st.maj .n { font-size: 17px; font-weight: 700; color: var(--accent); }
 .st.soft .n { font-size: 14.5px; color: var(--ink); }
 .st.tough .n { font-size: 14.5px; color: var(--ink-2); }
@@ -257,6 +263,8 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .st .br { font-size: 11px; color: var(--ink-3); }
 .hua { font-size: 11px; font-weight: 700; padding: 3px 1px; border-radius: 3px; color: var(--hua-ink); line-height: 1; }
 .hua i { font-style: normal; font-weight: 400; font-size: 9.5px; }
+.st .hua { text-align: center; }
+.st .hua i { display: block; } /* 「大祿」「年忌」在星名底下也是一字一行；圖例裡的橫著排 */
 .h-lu { background: var(--lu); } .h-quan { background: var(--quan); } .h-ke { background: var(--ke); } .h-ji { background: var(--ji); }
 .hua.o { background: transparent; border: 1px solid currentColor; padding: 2px 0; }
 .hua.o.h-lu { color: var(--lu); } .hua.o.h-quan { color: var(--quan); } .hua.o.h-ke { color: var(--ke); } .hua.o.h-ji { color: var(--ji); }
@@ -286,7 +294,7 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .foot .pn { font: 700 15px var(--f-display); white-space: nowrap; border: 0; background: none; padding: 0 2px; color: inherit; cursor: pointer; border-radius: 3px; }
 .foot .pn .mk { font: 400 11px var(--f-body); color: var(--accent-ink); background: var(--accent); border-radius: 3px; padding: 1px 3px; margin-left: 3px; vertical-align: 2px; }
 .foot .dr { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.foot .gzv { writing-mode: vertical-rl; text-orientation: upright; font: 400 15px/1 var(--f-display); color: var(--ink-2); }
+.foot .gzv { width: 1em; text-align: center; word-break: break-all; font: 400 15px/1 var(--f-display); color: var(--ink-2); } /* 宮干支上下兩個字，排法同星名 */
 .center { grid-column: 2 / 4; grid-row: 2 / 4; background: var(--sheet); padding: 16px 18px; display: grid; align-content: start; gap: 10px; min-width: 0; }
 .center .cn { font: 700 22px/1.2 var(--f-display); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; overflow-wrap: anywhere; }
 .center .cn span { font: 400 15px var(--f-display); color: var(--accent); }
@@ -337,4 +345,86 @@ footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-
   .rel { grid-template-columns: 54px minmax(0, 1fr); }
   .rel .wh { grid-column: 2; }
   .rel .nt { grid-column: 2; }
+}
+
+/* ───── 列印 ─────
+   瀏覽器自己的列印（Ctrl/⌘ + P）和網站版的兩顆列印鈕都走這裡。印的是「盤」：命主資訊加上目前看的那個分頁，
+   <body> 帶 print-both 時兩個分頁都印、紫微斗數另起一頁。表單、分頁列、紫微的運限列這些操作用的東西不印；
+   八字選到的運、年、月，紫微疊上的運限和選到的宮位，照畫面上的樣子印出來。
+   .so 只在畫面上（教人怎麼點的句子），.po 只在紙上（各部分的標題靠 ::before，頁尾那一行由 print.js 填）。 */
+@media screen { .po { display: none !important; } }
+/* 直式；紙張大小不指定，A4、Letter 都可以。邊界留給瀏覽器印頁首頁尾（日期、頁碼） */
+@page { size: portrait; margin: 12mm; }
+@media print {
+  .so, .masthead, .birth > :not(#err), .tabbar, #copyfallback, .toast, .yunbar, .swipe { display: none !important; }
+  /* 紙是白的：底色都換成白色。其餘有底色的小東西（四化、標籤、「今」、選到的那一格）照樣要印，
+     不然反白的字在紙上就看不見了；瀏覽器預設不印背景，這裡明說要印 */
+  :root { --paper: #fff; --sheet: #fff; }
+  /* 整頁縮成四分之三：A4 直式扣掉邊界大約 700px 寬，縮過之後版面有 940px 左右可以排，大運、流年、流月的十幾格排得下。
+     這個比例是量出來的（隨機盤印成 PDF 數頁數）：八字兩頁、紫微本命盤連同所選宮位的說明一頁，絕大多數的盤都排得進去；
+     內文大約 8.5pt。想要字大一點，在列印對話框調「縮放」 */
+  body { zoom: .75; line-height: 1.45; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .wrap { max-width: none; padding-left: 0; padding-right: 0; }
+  /* 最外層改成一般的由上往下排：grid 跨頁時，有些瀏覽器斷得不好。畫面上的留白是給手指點的，紙上收緊一些 */
+  main, .panel { display: block; padding-block: 0; }
+  main > .summary, .panel > *, .panel::before { margin-bottom: 10px; }
+  .summary { gap: 8px; }
+  .card { padding: 11px 14px; }
+  .card > h2 { margin-bottom: 7px; }
+  .note { margin-top: 7px; line-height: 1.45; }
+  /* 表單不印，只留錯誤訊息（有的話）：這時下面變淡的是上一次排的盤，紙上也要看得出來 */
+  .birth { display: block; border: 0; padding: 0; background: none; }
+  .birth:has(#err:not([hidden])) { margin-bottom: 10px; }
+  /* 分頁列不印，各部分自己帶標題 */
+  .panel::before { display: block; font: 700 20px/1.3 var(--f-display); letter-spacing: .12em; padding-bottom: 2px; border-bottom: 2px solid var(--ink); break-after: avoid; }
+  #p-bazi::before { content: "八字"; }
+  #p-ziwei::before { content: "紫微斗數"; }
+  body.print-both .panel[hidden] { display: block !important; }
+  body.print-both #p-ziwei { break-before: page; }
+  /* 兩個都印的時候，紫微那一頁上面沒有命主資訊，本命盤會比較空：十二宮的格子放高一點。疊了運限的盤本來就高，不再加 */
+  body.print-both .zw:not(:has(.ly)) { grid-auto-rows: minmax(200px, auto); }
+
+  /* 哪些東西不要被切成兩頁：一張表、一排運、一筆關係、整張紫微盤；標題和它底下的內容留在同一頁 */
+  .bz-top, .track-row, .rel, .ss tr, .zw, .legend, #pdetail, .warn, .facts > div, footer.colophon { break-inside: avoid; }
+  h2, h3, .yunhead, .who { break-after: avoid; }
+  .note, footer.colophon { break-before: avoid; } /* 頁尾不要自己落到新的一頁 */
+
+  .facts { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 16px; }
+  .scroll-x { overflow: visible; }
+  /* 八字：四柱在左，旺衰三看和五行字數疊在右邊 */
+  .bz-top { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 10px; }
+  .two { grid-template-columns: minmax(0, 1fr); gap: 10px; } /* 右邊那一欄比畫面上一欄的下限（300px）窄的紙也有，不設下限 */
+  .pillars td, .pillars th[scope=row] { padding-block: 5px; }
+  .gz b { font-size: 34px; }
+  .three { gap: 7px; }
+  /* 一筆關係排成一行：類別、內容、說明、位置與標籤。畫面上說明另起一行（手機排不下四欄），紙上夠寬 */
+  .rel { grid-template-columns: 58px 190px minmax(0, 1fr) auto; padding-block: 5px; }
+  .rel .nt { grid-column: 3; grid-row: 1; }
+  .rel .wh { grid-column: 4; }
+  /* 大運、流年、流月：畫面上是可以橫向捲的一排，紙上不能捲，所有格子平分一行 */
+  .track-row { grid-auto-columns: minmax(0, 1fr); gap: 5px; overflow: visible; padding: 9px 0 2px; }
+  .yun { padding: 6px 1px 5px; }
+  .yun .c { font-size: 22px; }
+  .sub { margin-top: 9px; padding-top: 8px; }
+  .sub h3 { margin-bottom: 4px; }
+  .ss td { padding-block: 5px; }
+  /* 紫微：盤面跟著紙的寬度；所選的宮在畫面上是內陰影，紙上改用外框線（陰影不一定印得出來） */
+  .zw { min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(160px, auto); }
+  .cell { padding: 6px 7px 5px; gap: 4px; }
+  .foot .l { line-height: 1.25; }
+  .center { padding: 12px 14px; gap: 8px; }
+  .cell.sel { box-shadow: none; outline: 2px solid var(--accent); outline-offset: -2px; }
+  .legend { margin-top: 7px; gap: 3px 14px; font-size: 11.5px; }
+  .pd-head { margin-bottom: 8px; }
+  .sfsz .r { padding-block: 5px; }
+  /* 所選宮位的三方四正：主星、輔星、這一宮在各層運限裡的宮名與流曜接成一行（畫面上分三行），排不下才換行 */
+  .sfsz .s { line-height: 1.5; }
+  .sfsz .s br { display: none; }
+  .sfsz .s .mi { margin-left: 1em; }
+  .sfsz .s .yl { display: inline-flex; margin: 0 0 0 1em; vertical-align: middle; }
+  .fly { margin-top: 9px; padding-top: 8px; }
+  /* 頁尾：算法說明很長，紙上只留標籤的意思和 print.js 填的那一行 */
+  footer.colophon { margin-top: 10px; padding-top: 9px; gap: 3px; line-height: 1.45; }
+  footer.colophon p:not(.po) { display: none; }
+  footer.colophon p.po { max-width: none; }
 }

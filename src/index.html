@@ -133,26 +133,34 @@
       <button class="tab" role="tab" id="t-bazi" aria-controls="p-bazi" aria-selected="true">八字</button>
       <button class="tab" role="tab" id="t-ziwei" aria-controls="p-ziwei" aria-selected="false">紫微斗數</button>
     </div>
-    <div class="tabtools"><button class="btn" id="copy" type="button">複製文字盤</button></div>
+    <div class="tabtools">
+      <button class="btn" id="copy" type="button">複製文字盤</button>
+      <!--@SITE-->
+      <button class="btn" id="print" type="button">列印／存 PDF</button>
+      <button class="btn" id="print-both" type="button">八字、紫微一起印</button>
+      <!--@/SITE-->
+    </div>
   </div>
   <div id="copyfallback" hidden></div>
 
   <section class="panel" id="p-bazi" role="tabpanel" aria-labelledby="t-bazi">
-    <div class="card">
-      <h2>四柱 <small id="bz-sub"></small></h2>
-      <div class="scroll-x"><table class="pillars" id="pillars"></table></div>
-      <p class="note">藏干第一個（粗體）是本氣。星運是日主在各支的十二長生，自坐是各柱天干坐本柱地支；陰干採逆行，土的長生隨火（火土同宮），判根仍以藏干為準。納音、空亡屬「參考」，介紹但不作主要判斷依據。</p>
-    </div>
-    <div class="two">
+    <div class="bz-top">
       <div class="card">
-        <h2>旺衰三看 <small>只列觀察，不下結論</small></h2>
-        <ul class="three" id="strength"></ul>
-        <p class="note">身強身弱請先自己推論，再對答案。月令看旺相休囚死（辰戌丑未月以土當令），通根看藏干。</p>
+        <h2>四柱 <small id="bz-sub"></small></h2>
+        <div class="scroll-x"><table class="pillars" id="pillars"></table></div>
+        <p class="note">藏干第一個（粗體）是本氣。星運是日主在各支的十二長生，自坐是各柱天干坐本柱地支；陰干採逆行，土的長生隨火（火土同宮），判根仍以藏干為準。納音、空亡屬「參考」，介紹但不作主要判斷依據。</p>
       </div>
-      <div class="card">
-        <h2>五行字數 <small>天干地支共 8 字</small></h2>
-        <div class="bars" id="bars"></div>
-        <p class="note">只數字面，不含藏干，也不是旺衰分數。量化計分是現代的人為設定，古籍沒有。</p>
+      <div class="two">
+        <div class="card">
+          <h2>旺衰三看 <small>只列觀察，不下結論</small></h2>
+          <ul class="three" id="strength"></ul>
+          <p class="note">身強身弱請先自己推論，再對答案。月令看旺相休囚死（辰戌丑未月以土當令），通根看藏干。</p>
+        </div>
+        <div class="card">
+          <h2>五行字數 <small>天干地支共 8 字</small></h2>
+          <div class="bars" id="bars"></div>
+          <p class="note">只數字面，不含藏干，也不是旺衰分數。量化計分是現代的人為設定，古籍沒有。</p>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -203,7 +211,8 @@
         <span><span class="ly xiao">小限</span> 這一年的小限走到的宮</span>
         <span>亮度：廟 旺 得 利 平 不 陷</span>
         <span>每格左下由上到下：十二長生、博士、歲前、將前；選了流年，歲前、將前的右邊是流年的</span>
-        <span>點任一宮，紫底標出它的三方四正</span>
+        <span class="so">點任一宮，紫底標出它的三方四正</span>
+        <span class="po">紫底是框起來的那一宮和它的三方四正</span>
       </div>
     </div>
     <div class="card" id="pdetail"></div>
@@ -214,6 +223,10 @@
     <p>節氣、四柱與大運起運由 lunar-javascript 1.7.7 計算；紫微斗數的本命盤由 iztro 2.6.3 安星（通行版星曜與亮度）。四化版本、年界、閏月算法可以在「紫微斗數流派設定」裡換，預設是坊間通行的排法：四化戊干取貪陰右機、庚干取陽武陰同、壬干取梁紫左武，正月初一換年，閏月以十五日為界。十神、藏干、十二長生、納音、空亡、合沖刑害、神煞用本頁內建表格計算。</p>
     <p>紫微的運限由本頁推算：大限以所在宮的宮干支起四化；第一個大限之前是童限，一歲命宮、二歲財帛、三歲疾厄、四歲夫妻、五歲福德；小限男順女逆、一歲一宮，寅午戌年生人從辰宮起、申子辰從戌、巳酉丑從未、亥卯未從丑；流年以流年地支所在的宮為命宮；流月用流年斗君，從流年命宮起正月逆數到生月、再順數到生時，就是正月，之後每月順行一宮；流日從流月命宮起初一，每日順行一宮。流曜是祿、羊、陀、魁、鉞、昌、曲、馬、鸞、喜十顆，依各層運限的干支安星，流年另有年解。流年以正月初一換年，流月、流日照農曆的月和日。</p>
     <p>年柱、月柱依出生瞬間對照節氣時刻（UTC+8）判斷，日柱、時柱依排盤用時。紫微斗數的生年預設以正月初一分界，年干可能和八字年柱不同。天乙貴人採「甲戊庚牛羊」口訣，羊刃只列陽干。起運之前還沒有大運，只列流年，不另排小運。八字的流月是節氣月：流年從立春起，十二個月各從交節的那一刻起算，月干照流年的年干用五虎遁。本頁只排盤，不解盤。</p>
+    <!--@SITE-->
+    <p>列印：「列印／存 PDF」印出目前看的那個分頁，和瀏覽器自己的列印相同；「八字、紫微一起印」兩個都印，紫微斗數從新的一頁開始。印出來的是畫面上選到的樣子：八字選到的運、年、月，紫微疊上的運限和選到的宮位；表單和操作用的按鈕不印。要存成 PDF 檔，在列印對話框把印表機（目的地）選成「另存為 PDF」。版面照 A4 直式設計，一般是八字兩頁、紫微本命盤一頁；字縮成畫面上的四分之三，想大一點可以在列印對話框調整縮放。</p>
+    <!--@/SITE-->
+    <p class="po" id="printed"></p>
   </footer>
 </main>
 

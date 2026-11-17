@@ -1,7 +1,7 @@
 /* 建置。執行：node scripts/build.js
    用 esbuild 把 src/app/main.js 連同它 import 的引擎、介面模組打包成一段腳本，和 src/styles.css 一起內嵌進 src/index.html，輸出兩種成品：
-     dist/paipan.html     單一檔案的頁面片段，外層骨架由發布平台補；函式庫從 CDN 載入
-     dist/site/           可以直接放上網站的完整網頁（GitHub Pages 用）；函式庫和網頁放在一起，不靠 CDN */
+     dist/paipan.html     單一檔案的頁面片段，外層骨架由發布平台補；函式庫從 CDN 載入；沒有列印按鈕（平台的檢視框不能列印）
+     dist/site/           可以直接放上網站的完整網頁（GitHub Pages 用）；函式庫和網頁放在一起，不靠 CDN；有列印按鈕 */
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -47,32 +47,44 @@ const bundle = await build({
 // 警告一律當錯誤：例如用了引擎沒有匯出的名字，esbuild 只會警告，但執行時就是 undefined
 if (bundle.warnings.length) throw new Error('打包時有警告：\n' + bundle.warnings.map(w => `  ${w.location ? `${w.location.file}:${w.location.line} ` : ''}${w.text}`).join('\n'));
 
+/* 只有網站版才有的內容，在 src/index.html 裡用 <!--@SITE--> 和 <!--@/SITE--> 各佔一行包起來（列印按鈕和它的說明）：
+   發布平台的檢視框不允許開列印對話框，所以片段裡整段拿掉；網站版留著內容，只拿掉這兩行標記 */
+const SITE_BLOCK = /^[ \t]*<!--@SITE-->\n([\s\S]*?)^[ \t]*<!--@\/SITE-->\n/gm;
+const siteBlocks = (page.match(SITE_BLOCK) || []).length;
+if (!siteBlocks || page.split('<!--@SITE-->').length - 1 !== siteBlocks || page.split('<!--@/SITE-->').length - 1 !== siteBlocks) {
+  throw new Error('src/index.html 的 <!--@SITE--> 和 <!--@/SITE--> 要成對、各自獨佔一行');
+}
+
 // 佔位標記 → 要內嵌的內容。內容照原樣放入，所以不可出現會提早結束標籤的字串
 const parts = {
   '/*@STYLES@*/': { text: styles, forbid: '</style' },
   '/*@APP@*/': { text: bundle.outputFiles[0].text, forbid: '</script' },
 };
-let out = page;
-for (const [mark, { text, forbid }] of Object.entries(parts)) {
-  if (out.split(mark).length !== 2) throw new Error(`src/index.html 裡的 ${mark} 標記必須恰好出現一次`);
-  if (text.toLowerCase().includes(forbid)) throw new Error(`${mark} 的內容不可含 ${forbid}`);
-  out = out.replace(mark, () => text);
+function inline(html) {
+  for (const [mark, { text, forbid }] of Object.entries(parts)) {
+    if (html.split(mark).length !== 2) throw new Error(`src/index.html 裡的 ${mark} 標記必須恰好出現一次`);
+    if (text.toLowerCase().includes(forbid)) throw new Error(`${mark} 的內容不可含 ${forbid}`);
+    html = html.replace(mark, () => text);
+  }
+  return html;
 }
+const out = inline(page.replace(SITE_BLOCK, ''));
 
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 const file = path.join(root, 'dist', 'paipan.html');
 fs.writeFileSync(file, out);
 console.log('已輸出', path.relative(root, file), (fs.statSync(file).size / 1024).toFixed(1) + ' KB');
 
-/* 另外輸出一份可以直接放上網站的完整網頁（GitHub Pages 用），放在 dist/site/。和上面的片段有三點不同：
+/* 另外輸出一份可以直接放上網站的完整網頁（GitHub Pages 用），放在 dist/site/。和上面的片段有四點不同：
    1. 外層骨架自己補，而且 <title>、樣式放進 <head>。片段是整段接在 <body> 後面的，那樣的網頁瀏覽器照樣能開，但不合規格。
    2. 兩個函式庫不走 CDN，改成和網頁放在一起的檔案（同一份檔案、同一個完整性雜湊，授權條款一併附上）：
       少一個外部相依，CDN 連不上的地方也能用。
-   3. 補上網站才需要的東西：說明文字、分頁圖示、分享連結時的標題。 */
+   3. 補上網站才需要的東西：說明文字、分頁圖示、分享連結時的標題。
+   4. 留著 @SITE 區塊的內容（列印按鈕和說明）。 */
 const siteDir = path.join(root, 'dist', 'site');
 fs.rmSync(siteDir, { recursive: true, force: true }); // 整個重建，免得留著上一版的函式庫檔
 fs.mkdirSync(path.join(siteDir, 'lib'), { recursive: true });
-let site = out;
+let site = inline(page.replace(SITE_BLOCK, '$1'));
 for (const lib of libs) {
   const local = `lib/${lib.name}-${lib.version}${lib.ext}`;
   if (site.split(lib.url).length !== 2) throw new Error(`頁面裡 ${lib.url} 應該恰好出現一次`);

@@ -76,8 +76,8 @@ export async function serveDir(dir, { tamper = {} } = {}) {
 }
 
 /* 開「放上網站的那一版」（serveDir 送出來的網址）。同一個來源的請求照常送，其餘外部請求一律擋掉並記在 external 裡，
-   測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定。 */
-export async function openSite(browser, url, { context = {} } = {}) {
+   測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定；init 也一樣，是頁面自己的腳本執行之前先在頁面裡跑的函式。 */
+export async function openSite(browser, url, { context = {}, init = [] } = {}) {
   const ctx = await browser.newContext({ ...DESKTOP, ...context });
   const page = await ctx.newPage();
   const errors = [], external = [], responses = [];
@@ -90,6 +90,7 @@ export async function openSite(browser, url, { context = {} } = {}) {
     external.push(u);
     return route.abort();
   });
+  for (const fn of init) await page.addInitScript(fn);
   await page.clock.setFixedTime(NOW);
   await page.goto(url);
   return { ctx, page, errors, external, responses };
