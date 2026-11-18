@@ -54,7 +54,7 @@ export function run() {
   if (!zsame) {
     S.curDec = currentDecade();
     S.pal = S.c.palaces.findIndex(p => p.name === '命宮');
-    S.dec = S.yr = S.mo = S.day = null;
+    S.dec = S.yr = S.mo = S.day = S.hr = null;
   }
   const warns = renderSummary();
   renderBazi();

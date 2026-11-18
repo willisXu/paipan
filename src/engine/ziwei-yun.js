@@ -1,4 +1,4 @@
-/* 紫微斗數的運限：大限、童限、小限、流年、流月、流日各自落在本命盤的哪一宮，連同干支、十二宮名、四化與流曜；流年另有歲前、將前十二神。
+/* 紫微斗數的運限：大限、童限、小限、流年、流月、流日、流時各自落在本命盤的哪一宮，連同干支、十二宮名、四化與流曜；流年另有歲前、將前十二神。
    本命盤（宮位、宮干支、大限起訖、小限歲數）讀 ziwei() 的結果。運限怎麼推、流曜安在哪裡，用這裡的公式與表格，
    測試中和 iztro 自己的運限查詢逐項比對。農曆每個月從哪一天到哪一天，用全域的 LunarYear、Solar（lunar-javascript）。
 
@@ -9,6 +9,8 @@
      流年    流年地支所在的宮是流年命宮
      流月    流年斗君起正月：從流年命宮起正月，逆數到生月，再從那一宮起子時順數到生時；之後每月順行一宮。月干用五虎遁
      流日    從流月命宮起初一，每日順行一宮
+     流時    從流日命宮起子時，每個時辰順行一宮。時干用五鼠遁。一天照鐘錶的 0 點到 24 點排十三格：早子時、丑時到亥時、晚子時；
+             晚子時的命宮和早子時相同，時干用次日的子時（夜子時不換日的排法，iztro 也是這樣）
      閏月    跟著本命盤的設定：月中分界時，閏月上半（初一到十五）算本月、下半算下個月；否則整個閏月算本月
    年界只決定生年（也就是虛歲從哪一年算起）；流月、流日一律照農曆的月和日，歸在農曆那一年底下。 */
 import { GAN, ZHI, gi, zi, yearGZ } from './ganzhi.js';
@@ -18,7 +20,7 @@ import { fromMs, pad, lunarMonthName, lunarDayName } from './time.js';
  * 一段運限疊在本命盤上的樣子。下面各個函式的結果都帶這幾欄，再各自加上自己的欄位。
  * @typedef {object} YunLayer
  * @property {number} index 這段運限的命宮在本命盤的哪一宮（宮位序號：寅宮 0、卯宮 1 … 丑宮 11）
- * @property {string} gz 干支。大限、童限、小限是所在那一宮的宮干支；流年、流月、流日是那一年、那個月、那一天的干支
+ * @property {string} gz 干支。大限、童限、小限是所在那一宮的宮干支；流年、流月、流日、流時是那一年、那個月、那一天、那個時辰的干支
  * @property {string[]} names 本命十二宮各自的運限宮名，照宮位序號排；names[index] 是「命宮」
  * @property {string[]} hua 這段運限的四化星，依序是化祿、化權、化科、化忌
  * @property {string[][]} stars 流曜：本命十二宮各有哪幾顆，照宮位序號排。小限沒有流曜，十二格都是空的
@@ -42,7 +44,7 @@ const FLOW = [...'魁鉞昌曲祿羊陀馬鸞喜'];       // 一宮裡有好幾�
 const SUI12 = ['歲建', '晦氣', '喪門', '貫索', '官符', '小耗', '大耗', '龍德', '白虎', '天德', '弔客', '病符'];
 const JIANG12 = ['將星', '攀鞍', '歲驛', '息神', '華蓋', '劫煞', '災煞', '天煞', '指背', '咸池', '月煞', '亡神'];
 
-// 一組干支帶出的流曜。prefix 是名稱的頭一個字：運（大限、童限）、流（流年）、月、日
+// 一組干支帶出的流曜。prefix 是名稱的頭一個字：運（大限、童限）、流（流年）、月、日、時
 function flowStars(gz, prefix) {
   const g = gi(gz[0]), b = zi(gz[1]), out = Array.from({ length: 12 }, () => []);
   if (prefix === '流') out[palOf(10 - b)].push('年解'); // 年解只有流年有：子年在戌，逐年逆行
@@ -172,4 +174,28 @@ function zwLiuRi(zw, month) {
   return out;
 }
 
-export { zwSpans, zwDaXian, zwTongXian, zwXiaoXian, zwLiuNian, zwLiuYue, zwLiuRi };
+/**
+ * 流時：流日那一天的十三格。從流日命宮起子時，每個時辰順行一宮；時干照日干用五鼠遁（甲己日起甲子時）。
+ * 一天照鐘錶的 0 點到 24 點算，所以子時拆成頭尾兩格：早子時（0 到 1 點）和晚子時（23 到 24 點）。
+ * 晚子時的命宮和早子時相同，時干用次日的子時——這是「夜子時不換日」的排法；採 23 點換日的看法時，
+ * 這一個小時整個算次日的子時，也就是次日那一天的早子時那一格（命宮、干支、四化、流曜都一樣，只是從前一晚 23 點算起）。
+ * @param {import('./ziwei.js').ZiweiChart} zw
+ * @param {{index: number, gz: string}} day zwLiuRi() 回傳的其中一天
+ * @returns {(YunLayer & {k: number, label: string, from: string, to: string})[]}
+ *   k 第幾格：0 早子時、1 丑時 … 11 亥時、12 晚子時；label 寫法「早子時」「丑時」…「晚子時」；from、to 這一格的起訖鐘點 HH:MM（晚子時到 24:00）
+ */
+function zwLiuShi(zw, day) {
+  const dg = gi(day.gz[0]), out = [];
+  for (let k = 0; k <= 12; k++) {
+    const late = k === 12, b = k % 12;         // b 時支的地支序；晚子時也是子
+    const zi0 = ((dg + (late ? 1 : 0)) % 5) * 2; // 五鼠遁：子時的天干序。甲己日甲子、乙庚日丙子、丙辛日戊子、丁壬日庚子、戊癸日壬子；晚子時看次日的日干
+    out.push({
+      ...layer(zw, md(day.index + b), GAN[(zi0 + b) % 10] + ZHI[b], '時'),
+      k, label: k === 0 ? '早子時' : late ? '晚子時' : `${ZHI[b]}時`,
+      from: `${pad(k === 0 ? 0 : 2 * k - 1)}:00`, to: `${pad(late ? 24 : 2 * k + 1)}:00`,
+    });
+  }
+  return out;
+}
+
+export { zwSpans, zwDaXian, zwTongXian, zwXiaoXian, zwLiuNian, zwLiuYue, zwLiuRi, zwLiuShi };

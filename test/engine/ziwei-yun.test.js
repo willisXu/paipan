@@ -1,4 +1,4 @@
-/* 紫微運限與流派設定：引擎自己推的大限、童限、小限、流年、流月、流日（宮位、干支、宮名、四化、流曜、十二神），
+/* 紫微運限與流派設定：引擎自己推的大限、童限、小限、流年、流月、流日、流時（宮位、干支、宮名、四化、流曜、十二神），
    一邊對 iztro 的運限查詢，一邊對照口訣寫的獨立表格；再驗四化版本、年界、閏月算法三個設定。
    執行：node test/engine/ziwei-yun.test.js（約半分鐘，時間花在 iztro 的運限查詢上） */
 import '../helpers/libs.js';
@@ -29,10 +29,11 @@ function diffLayer(L, it, withStars = true) {
   return out;
 }
 
-section('運限對 iztro（預設設定，160 張盤、每張 12 個日期）：大限或童限、小限、流年與歲前將前、流月、流日');
+section('運限對 iztro（預設設定，160 張盤、每張 12 個日期）：大限或童限、小限、流年與歲前將前、流月、流日、流時');
 {
   const { bad, note } = tally();
   let n = 0, child = 0, leapDates = 0, leapBirths = 0, late = 0;
+  const hourSeen = Array(13).fill(0); // 流時十三格各比了幾次
   for (let k = 0; k < 160; k++) {
     let b = rndBirth(1900, 2100);
     if (k % 8 === 0) { // 每八張有一張生在閏月，上半月、下半月都要抽到
@@ -82,12 +83,20 @@ section('運限對 iztro（預設設定，160 張盤、每張 12 個日期）：
       // 流日
       const day = mo && PP.zwLiuRi(zw, mo).find(x => x.date === date);
       { const d = diffLayer(day, h.daily); if (d.length) note('流日', `${where}：${d.join('；')}`); }
+      // 流時：每三個日期查一次（iztro 一次查詢要十毫秒），十三格輪流查，早子時、晚子時都輪得到
+      if (j % 3 === 0 && day) {
+        const ti = (k + j / 3) % 13, hours = PP.zwLiuShi(zw, day);
+        const d = diffLayer(hours[ti], c.horoscope(date, ti).hourly); if (d.length) note('流時', `${where} 第 ${ti} 格：${d.join('；')}`);
+        eqq('流時共十三格', hours.length, 13);
+        hourSeen[ti]++;
+      }
       function eqq(name, a, w) { if (!same(a, w)) note(name, `${where}：引擎 ${JSON.stringify(a)}，iztro ${JSON.stringify(w)}`); }
     }
     function eqq(name, a, w) { if (!same(a, w)) note(name, `${tag}：${JSON.stringify(a)} ≠ ${JSON.stringify(w)}`); }
   }
   eq(bad, {}, `${n} 次查詢，不一致的項目與次數`);
   ok(child > 100 && leapDates === 320 && leapBirths === 20 && late > 3, `抽樣含童限 ${child} 次、閏月裡的日期 ${leapDates} 次、閏月出生 ${leapBirths} 張、晚子時 ${late} 張`);
+  ok(hourSeen.every(c => c >= 40) && hourSeen.reduce((a, b) => a + b) === 640, `流時查了 640 次，十三格每一格至少 ${Math.min(...hourSeen)} 次`);
 }
 
 section('流曜與十二神對口訣（六十甲子全部）');
@@ -130,6 +139,10 @@ section('流曜與十二神對口訣（六十甲子全部）');
   ok(days.every(d => d.stars.flat().every(s => s[0] === '日') && d.stars.flat().length === 10), '流日的流曜十顆，名字都以「日」開頭');
   const dx = PP.zwDaXian(zw, 6);
   ok(dx.stars.flat().every(s => s[0] === '運') && dx.stars.flat().length === 10 && yr.stars.flat().length === 11, '大限的流曜十顆、以「運」開頭；流年多一顆年解');
+  const hrs = days.flatMap(d => PP.zwLiuShi(zw, d));
+  ok(hrs.length === days.length * 13 && hrs.every(h => h.stars.flat().every(s => s[0] === '時') && h.stars.flat().length === 10), '流時的流曜十顆，名字都以「時」開頭');
+  const h5 = hrs.find(h => h.gz === yr.gz); // 丙午時（丙辛日的午時）和 2026 丙午年同干支
+  ok(h5 && h5.label === '午時' && same(strip(h5.stars), strip(yr.stars)), '同干支的時辰和年，流曜位置相同');
 }
 
 // 頁面列得到的流年：最早是 1900 年初、過年前出生的人的生年 1899；最晚是 2100 年出生、火六局的第十個大限，到 2204 年
@@ -173,6 +186,39 @@ section('流月與流日的曆法（1899 到 2205 年每一年）：月份接得
   ok(split > 200, `含拆成上下半的閏月 ${split} 段`);
   const names = PP.zwLiuRi(zw, PP.zwLiuYue(zw, 2026)[0]).map(d => d.label);
   eq([names[0], names[9], names[10], names[19], names[20], names[29]], ['初一', '初十', '十一', '二十', '廿一', '三十'], '農曆日的寫法');
+}
+
+section('流時：十三格的時干支對函式庫、命宮順行、鐘點首尾相接（500 天）');
+{
+  /* 引擎的寫法是五鼠遁加上「晚子時用次日的日干」。這裡不用口訣，直接問 lunar-javascript 那個鐘點的時柱：
+     每一格問頭一分鐘和最後一分鐘（丑時是 01:00 和 02:59），兩個答案都要和引擎那一格的干支相同，等於同時核對了每一格的起訖鐘點。 */
+  const { zw } = chartOf({ y: 1984, m: 11, d: 20, h: 14, mi: 0 });
+  const LABELS = ['早子時', ...[...'丑寅卯辰巳午未申酉戌亥'].map(z => z + '時'), '晚子時'];
+  const { bad, note } = tally();
+  const stems = new Set();
+  let n = 0;
+  for (let i = 0; i < 500; i++) {
+    const year = rnd(1984, 2090), mos = PP.zwLiuYue(zw, year), mo = pick(mos), days = PP.zwLiuRi(zw, mo), di = rnd(0, days.length - 1), day = days[di];
+    const hours = PP.zwLiuShi(zw, day), [y, m, d] = day.date.split('-').map(Number), where = `${day.date} ${day.gz}日`;
+    const libGZ = (h, mi) => (h >= 0 && h <= 23 ? Solar.fromYmdHms(y, m, d, h, mi, 0).getLunar().getTimeInGanZhi() : `（${h} 點不存在）`); // 鐘點寫錯時要報成不一致，不要讓函式庫丟例外
+    if (!same(hours.map(h => h.label), LABELS) || !same(hours.map(h => h.k), [...Array(13).keys()])) note('十三格的名稱與序號', where);
+    if (hours[0].from !== '00:00' || hours[12].to !== '24:00' || hours.some((h, k) => k && h.from !== hours[k - 1].to)) note('鐘點首尾相接', where);
+    hours.forEach((h, k) => {
+      n++;
+      const [h0, h1] = [Number(h.from.slice(0, 2)), Number(h.to.slice(0, 2)) - 1]; // 這一格的頭一個小時與最後一個小時
+      if (libGZ(h0, 0) !== h.gz || libGZ(h1, 59) !== h.gz) note('時干支', `${where} ${h.label}：引擎 ${h.gz}，函式庫 ${libGZ(h0, 0)}／${libGZ(h1, 59)}`);
+      if (h.index !== md(day.index + (k % 12)) || h.names[h.index] !== '命宮' || !same(h.hua, zw.sihua[h.gz[0]])) note('命宮順行、宮名、四化', `${where} ${h.label}`);
+      if (k % 12 === 0) stems.add(day.gz[0] + (k ? '晚' : '早') + h.gz);
+    });
+    // 晚子時的命宮和早子時相同；它的干支、四化、流曜就是次日早子時的（次日在同一個月裡時才比；次日的命宮則往前走了一宮）
+    const next = days[di + 1] && PP.zwLiuShi(zw, days[di + 1])[0];
+    if (hours[12].index !== hours[0].index) note('晚子時的命宮同早子時', where);
+    if (next && (next.gz !== hours[12].gz || !same(next.hua, hours[12].hua) || !same(next.stars, hours[12].stars) || next.index !== md(hours[12].index + 1))) note('晚子時用次日子時的干支', where);
+  }
+  eq(bad, {}, `${n} 格（500 天 × 13），不一致的項目與次數`);
+  ok(stems.size === 20, `十個日干的早子時、晚子時都抽到了：${[...stems].filter(x => x[0] === '甲' || x[0] === '己').sort().join('、')}…`);
+  const five = Object.fromEntries([...stems].filter(x => x[1] === '早').map(x => [x[0], x.slice(2)]));
+  eq([five.甲, five.己, five.乙, five.庚, five.丙, five.辛, five.丁, five.壬, five.戊, five.癸], ['甲子', '甲子', '丙子', '丙子', '戊子', '戊子', '庚子', '庚子', '壬子', '壬子'], '五鼠遁：甲己還加甲，乙庚丙作初，丙辛從戊起，丁壬庚子居，戊癸何方發，壬子是真途');
 }
 
 section('小限、童限、運限分段對獨立公式（400 張盤）');
@@ -240,7 +286,8 @@ section('流派設定：四化版本');
       if (!same(Object.entries(marks).sort(), Object.entries(want).sort())) note('生年四化', `${hua} ${g}年：盤上 ${JSON.stringify(marks)}，表 ${JSON.stringify(want)}`);
       // 運限四化查同一張表
       const L = PP.zwLiuNian(zw, 2030 + k % 10), D = PP.zwDaXian(zw, k % 12), M = PP.zwLiuYue(zw, 2030 + k % 10)[k % 12];
-      for (const x of [L, D, M, PP.zwLiuRi(zw, M)[k % 13], PP.zwXiaoXian(zw, 30 + k)]) if (!same(x.hua, zw.sihua[x.gz[0]])) note('運限四化', `${hua} ${x.gz}`);
+      const dayK = PP.zwLiuRi(zw, M)[k % 13];
+      for (const x of [L, D, M, dayK, PP.zwLiuShi(zw, dayK)[k % 13], PP.zwXiaoXian(zw, 30 + k)]) if (!same(x.hua, zw.sihua[x.gz[0]])) note('運限四化', `${hua} ${x.gz}`);
       // iztro 自己的運限也跟著這張盤的四化設定
       if (k < 10) { const h = c.horoscope(`${2030 + k}-7-1`, 6); if (!same(h.yearly.mutagen, L.hua)) note('iztro 的流年四化', `${hua} ${L.gz}`); }
     }
@@ -362,6 +409,11 @@ section('教材範例盤的運限（1984-11-20 14:00 男）');
   eq([mos.length, mos[0].label, mos[0].gz, P[mos[0].index].earthlyBranch, mos[0].from], [12, '正月', '庚寅', '辰', '2026-02-17'], '2026 年正月在辰宮，從 2 月 17 日起');
   eq([oct.label, oct.gz, P[oct.index].earthlyBranch, oct.from, oct.to, oct.days], ['十月', '己亥', '丑', '2026-11-09', '2026-12-08', [1, 30]], '十月己亥在丑宮');
   eq([d9.label, d9.date, d9.gz, P[d9.index].earthlyBranch], ['初九', '2026-11-17', '乙未', '酉'], '十月初九（2026-11-17）乙未日在酉宮');
+  // 流時：乙庚日起丙子時；從流日命宮（酉）起子時順數，午時在卯宮。晚子時的命宮同早子時，時干用次日（丙申日）的戊子
+  const hs = PP.zwLiuShi(zw, d9);
+  eq(hs.map(h => h.gz).join(' '), '丙子 丁丑 戊寅 己卯 庚辰 辛巳 壬午 癸未 甲申 乙酉 丙戌 丁亥 戊子', '乙未日的十三格：早子時丙子，到亥時丁亥，晚子時戊子');
+  eq([hs[6].label, hs[6].from, hs[6].to, P[hs[6].index].earthlyBranch, hs[6].hua], ['午時', '11:00', '13:00', '卯', ['天梁', '紫微', '左輔', '武曲']], '午時（11 到 13 點）壬午在卯宮，四化照壬干');
+  eq([hs[0].label, hs[0].from, hs[0].to, P[hs[0].index].earthlyBranch, hs[12].label, hs[12].from, hs[12].to, P[hs[12].index].earthlyBranch], ['早子時', '00:00', '01:00', '酉', '晚子時', '23:00', '24:00', '酉'], '早子時 0 到 1 點、晚子時 23 到 24 點，都在流日命宮酉宮');
   eq(PP.zwLiuYue(zw, 2025).filter(m => m.leap).map(m => [m.label, m.gz, m.from, m.to]), [['閏六月上半', '癸未', '2025-07-25', '2025-08-08'], ['閏六月下半', '甲申', '2025-08-09', '2025-08-22']], '2025 年閏六月拆成兩段');
   eq([PP.zwLiuNian(zw, 1983), PP.zwLiuNian(zw, 1984)?.age, PP.zwLiuNian(zw, 2026.5)], [null, 1, null], '出生前的年份、不是整數的年份排不出流年');
   // 斗君的教科書算法，換一張盤：三月寅時生的人，子年從子宮起正月，逆數到三月是戌宮，戌宮起子時順數到寅時是子宮

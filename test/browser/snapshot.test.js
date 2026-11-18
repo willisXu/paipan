@@ -14,7 +14,7 @@ const UPDATE = process.argv.includes('--update');
 
 const S = { gender: '男', cal: 'solar', date: '1984-11-20', time: '14:00', place: '台北', clock: 'auto', tst: false, zi: 'next', zhua: 'tongxing', zyear: 'lunar', zleap: 'mid', dy: 1, ln: 2, dec: 4, yr: 3, pal: 6 };
 /* 每筆：生辰設定（含紫微的流派設定 zhua、zyear、zleap），加上要點的大運（dy，-1 是起運前）、流年（ln）、
-   大限（dec，'child' 是童限）、流年籤（yr）、宮位（pal）；有給 mo、day 的再往下點流月、流日（都是「第幾個籤」） */
+   大限（dec，'child' 是童限）、流年籤（yr）、宮位（pal）；有給 mo、day、hr 的再往下點流月、流日、流時（都是「第幾個籤」） */
 const SCENARIOS = [
   { id: '教材範例盤', keep: true },
   { id: '女命', gender: '女', dy: 0, ln: 9, dec: 1, yr: 0, pal: 0 },
@@ -47,6 +47,9 @@ const SCENARIOS = [
   { id: '立春年界、立春當天交節之前', date: '1984-02-04', time: '10:00', zyear: 'lichun', dy: 1, ln: 1, dec: 2, yr: 2, pal: 5 },
   { id: '閏月下半月出生', cal: 'lunar', ly: 2023, lm: 2, ld: 20, leap: true, time: '10:00', dy: 0, ln: 3, dec: 1, yr: 4, mo: 2, day: 10, pal: 0 },
   { id: '閏月下半月出生、算本月、庚干陽武同陰', cal: 'lunar', ly: 2023, lm: 2, ld: 20, leap: true, time: '10:00', zleap: 'current', zhua: 'gengTongYin', dy: 0, ln: 3, dec: 1, yr: 4, mo: 2, day: 10, pal: 0 },
+  // 紫微的流時
+  { id: '流時', mo: 9, day: 2, hr: 6 },
+  { id: '晚子時、中州派、女命', date: '1990-06-15', time: '10:00', gender: '女', zhua: 'zhongzhou', dy: 1, ln: 4, dec: 2, yr: 0, mo: 3, day: 14, hr: 12, pal: 7 },
 ].map(s => ({ ...S, ...s }));
 
 // 只收合一般空白（原始碼排版用的縮排與換行）；全形空白是畫面內容的一部分，要原樣比對
@@ -88,6 +91,7 @@ async function capture(browser, sc, harness) {
     await page.locator('#yrs .chip2').nth(sc.yr).click();
     if (sc.mo !== undefined) await page.locator('#mos .chip2').nth(sc.mo).click();
     if (sc.day !== undefined) await page.locator('#days .chip2').nth(sc.day).click();
+    if (sc.hr !== undefined) await page.locator('#hrs .chip2').nth(sc.hr).click();
     await page.locator(`#zw .cell[data-pal="${sc.pal}"]`).click();
     snaps.ziwei2 = await html('#p-ziwei');
     await page.locator('#copy').click();

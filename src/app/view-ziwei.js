@@ -1,9 +1,9 @@
-/* 紫微斗數分頁：十二宮方盤，大限、流年、流月、流日一層一層疊上去，小限，所選宮位的三方四正與飛化，以及各種點選。
+/* 紫微斗數分頁：十二宮方盤，大限、流年、流月、流日、流時一層一層疊上去，小限，所選宮位的三方四正與飛化，以及各種點選。
    每一層運限落在哪一宮、干支、宮名、四化、流曜都向引擎查；這裡只管選到哪一個、怎麼畫。
    第一個大限開始之前的那幾年是童限，每年走的宮不同，所以童限一定帶著所選的那一年。 */
-import { SHICHEN, yearGZ, yinyang, zwSpans, zwDaXian, zwTongXian, zwXiaoXian, zwLiuNian, zwLiuYue, zwLiuRi } from '../engine/index.js';
+import { SHICHEN, yearGZ, yinyang, zwSpans, zwDaXian, zwTongXian, zwXiaoXian, zwLiuNian, zwLiuYue, zwLiuRi, zwLiuShi } from '../engine/index.js';
 import { $, esc, reveal, refocus } from './dom.js';
-import { S, today, zwYear } from './state.js';
+import { S, today, zwYear, nowHr } from './state.js';
 import { nameOf, zwOptLabels, monthDay } from './format.js';
 
 // 四化的固定順序：引擎給的四化（生年、宮干、各層運限）都依這個順序排
@@ -29,23 +29,24 @@ export function currentDecade() {
   return !s ? null : s.child ? CHILD : s.palace;
 }
 
-/* 目前疊上的各層運限：dec 大限或童限、yr 流年、mo 流月、day 流日，另有 xiao 小限（選了流年才有）；沒選到的那一層是 null。
-   months、days 是選到的流年底下有哪些流月、選到的流月底下有哪些流日，畫運限列用。本命盤（什麼都沒疊）回傳 null */
+/* 目前疊上的各層運限：dec 大限或童限、yr 流年、mo 流月、day 流日、hr 流時，另有 xiao 小限（選了流年才有）；沒選到的那一層是 null。
+   months、days、hours 是選到的流年底下有哪些流月、選到的流月底下有哪些流日、選到的流日有哪十三格流時，畫運限列用。本命盤（什麼都沒疊）回傳 null */
 export function layers() {
   if (S.dec === null) return null;
   const zw = S.zw, age = S.yr === null ? null : ageOf(S.yr);
   const months = S.yr === null ? [] : zwLiuYue(zw, S.yr), mo = S.mo === null ? null : months[S.mo] || null;
-  const days = mo ? zwLiuRi(zw, mo) : [];
+  const days = mo ? zwLiuRi(zw, mo) : [], day = S.day === null ? null : days.find(d => d.day === S.day) || null;
+  const hours = day ? zwLiuShi(zw, day) : [];
   return {
     dec: S.dec === CHILD ? zwTongXian(zw, age) : zwDaXian(zw, S.dec),
     xiao: age === null ? null : zwXiaoXian(zw, age),
     yr: S.yr === null ? null : zwLiuNian(zw, S.yr),
-    mo, day: S.day === null ? null : days.find(d => d.day === S.day) || null,
-    age, months, days,
+    mo, day, hr: S.hr === null ? null : hours[S.hr] || null,
+    age, months, days, hours,
   };
 }
 // 疊在盤上的那幾層，由外到內。key 也是 CSS 的 class；mark 是標在宮名、四化前面的一個字
-const stack = L => (!L ? [] : [['dec', L.dec && L.dec.child ? '童' : '大'], ['yr', '年'], ['mo', '月'], ['day', '日']].filter(([key]) => L[key]).map(([key, mark]) => ({ key, mark, layer: L[key] })));
+const stack = L => (!L ? [] : [['dec', L.dec && L.dec.child ? '童' : '大'], ['yr', '年'], ['mo', '月'], ['day', '日'], ['hr', '時']].filter(([key]) => L[key]).map(([key, mark]) => ({ key, mark, layer: L[key] })));
 // 某一宮在各層運限裡的宮名（小限走到這一宮時多一個「小限」），以及落在這一宮的流曜
 const layerNames = (L, st, i) => st.map(({ key, mark, layer }) => `<span class="ly ${key}${layer.names[i] === '命宮' ? ' ming' : ''}"><i>${mark}</i>${layer.names[i]}</span>`).join('') +
   (L && L.xiao && L.xiao.index === i ? '<span class="ly xiao">小限</span>' : '');
@@ -55,11 +56,11 @@ export function renderZiwei() {
   const L = layers();
   renderYunbar(L);
   $('#zw').innerHTML = palaceCells(L) + centerCell(L);
-  ['#decs', '#yrs', '#mos', '#days'].forEach(reveal);
+  ['#decs', '#yrs', '#mos', '#days', '#hrs'].forEach(reveal);
   renderPalaceDetail(L);
 }
 
-// 盤面上方的運限列：大限，以及選了上一層才出現的流年、流月、流日
+// 盤面上方的運限列：大限，以及選了上一層才出現的流年、流月、流日、流時
 function renderYunbar(L) {
   const chip = (attr, on, cur, html) => `<button type="button" class="chip2${cur ? ' cur' : ''}" ${attr} aria-pressed="${on}">${cur ? NOW : ''}${html}</button>`;
   $('#decs').innerHTML = `<span class="rowlabel">大限</span><button type="button" class="chip2" data-dec="" aria-pressed="${S.dec === null}">本命盤</button>` +
@@ -74,6 +75,10 @@ function renderYunbar(L) {
   row('#mos', '流月', L ? L.months.map(m => chip(`data-mo="${m.k}"`, S.mo === m.k, m.from <= today && today <= m.to, `<small>${monthDay(m.from)} 起</small><span>${m.label}<b>${m.gz}</b></span>`)).join('') : '');
   const solar = (d, k) => { const [m, day] = monthDay(d.date).split('/'); return k === 0 || day === '1' ? `${m}/${day}` : `<span class="vh">${m}/</span>${day}`; };
   row('#days', '流日', L ? L.days.map((d, k) => chip(`data-day="${d.day}"`, S.day === d.day, d.date === today, `<small>${solar(d, k)}</small><span>${d.label}</span><b>${d.gz}</b>`)).join('') : '');
+  /* 流時：選到的那一天的十三格（早子時、丑時到亥時、晚子時），上面一行小字是鐘點。選的是今天時，現在所在的那一格標「今」；
+     「看今天」只疊到流日，不替人選時辰 */
+  const clock = h => `${Number(h.from.slice(0, 2))}–${Number(h.to.slice(0, 2))} 點`;
+  row('#hrs', '流時', L ? L.hours.map(h => chip(`data-hr="${h.k}"`, S.hr === h.k, L.day.date === today && h.k === nowHr, `<small>${clock(h)}</small><span>${h.label}<b>${h.gz}</b></span>`)).join('') : '');
 }
 
 // 十二宮的格子。L 是目前疊上的運限（layers() 的結果），沒有疊則為 null
@@ -119,7 +124,7 @@ function centerCell(L) {
     ? (zw.yearGZ !== bz.gz[0] ? `以正月初一分界；八字年柱以立春分界，為${bz.gz[0]}` : '')
     : [zw.yearGZ !== lunarGZ ? `以立春分界；照正月初一是${lunarGZ}年` : '', zw.yearGZ !== bz.gz[0] ? `立春以日為單位換年；八字年柱看交節的時刻，為${bz.gz[0]}` : ''].filter(Boolean).join('。');
   // 教人怎麼點的那一句只在畫面上（class="so"）；印在紙上只留「目前是本命盤。」
-  let yunLine = '<span class="muted">目前是本命盤。<span class="so">點上方的大限、流年、流月、流日，一層一層疊上運限的宮名、四化和流曜。</span></span>';
+  let yunLine = '<span class="muted">目前是本命盤。<span class="so">點上方的大限、流年、流月、流日、流時，一層一層疊上運限的宮名、四化和流曜。</span></span>';
   if (L) {
     const at = layer => c.palaces[layer.index].name; // 這一層的命宮落在本命的哪一宮
     const lines = [];
@@ -129,6 +134,8 @@ function centerCell(L) {
     if (L.xiao) lines.push(['xv', `小限 <b>${L.age} 歲 ${L.xiao.gz}</b>（${at(L.xiao)}）`, L.xiao]);
     if (L.mo) lines.push(['mv', `流月 <b>${L.mo.label} ${L.mo.gz}</b>（${monthDay(L.mo.from)}–${monthDay(L.mo.to)}）`, L.mo]);
     if (L.day) lines.push(['dv', `流日 <b>${L.day.label} ${L.day.gz}</b>（${L.day.date}）`, L.day]);
+    // 晚子時的時干用的是次日的子時，寫明，免得和早子時的干支對不起來
+    if (L.hr) lines.push(['hv', `流時 <b>${L.hr.label} ${L.hr.gz}</b>（${L.hr.from}–${L.hr.to}${L.hr.k === 12 ? '，時干用次日的子時' : ''}）`, L.hr]);
     yunLine = lines.map(([cls, head, layer]) => `<span class="${cls}">${head}：${huaText(layer)}</span>`).join('<br>');
   }
   return `<div class="center">
@@ -180,18 +187,18 @@ function renderPalaceDetail(L) {
 // 選大限（或童限、本命盤）：裡面幾層先清掉；選到今年所在的那一段時，順便帶出今年
 function pickDecade(v) {
   S.dec = v === '' ? null : v === CHILD ? CHILD : Number(v);
-  S.yr = S.mo = S.day = null;
+  S.yr = S.mo = S.day = S.hr = null;
   if (S.dec === null) return;
   const [y0, y1] = spanOf(S.dec).years;
   if (zwYear >= y0 && zwYear <= y1) S.yr = zwYear;
   else if (S.dec === CHILD) S.yr = y0; // 童限每年走的宮不同，一定要落在某一年上：先看一歲
 }
-// 一鍵疊到今天：今年所在的大限、今年、今天所在的流月與流日。頁面的「看今天」，命令列 --at 也用它（S.curDec 要先算好）
+// 一鍵疊到今天：今年所在的大限、今年、今天所在的流月與流日；流時不選（疊到「天」為止）。頁面的「看今天」，命令列 --at 也用它（S.curDec 要先算好）
 export function pickToday() {
   if (S.curDec === null) return;
   const mo = zwLiuYue(S.zw, zwYear).find(m => m.from <= today && today <= m.to);
   const day = mo && zwLiuRi(S.zw, mo).find(d => d.date === today);
-  Object.assign(S, { dec: S.curDec, yr: zwYear, mo: mo ? mo.k : null, day: day ? day.day : null });
+  Object.assign(S, { dec: S.curDec, yr: zwYear, mo: mo ? mo.k : null, day: day ? day.day : null, hr: null });
 }
 
 export function initZiweiView() {
@@ -201,7 +208,7 @@ export function initZiweiView() {
     S.pal = Number(el.dataset.pal);
     renderZiwei(); refocus(`.cell[data-pal="${S.pal}"] .pn`);
   });
-  // 運限列的四排籤：點了改選到的項目，重畫，再把焦點放回同一顆按鈕
+  // 運限列的五排籤：點了改選到的項目，重畫，再把焦點放回同一顆按鈕
   const row = (sel, attr, pick) => $(sel).addEventListener('click', e => {
     const b = e.target.closest(`[${attr}]`); if (!b || !S.c) return;
     const v = b.getAttribute(attr);
@@ -211,7 +218,8 @@ export function initZiweiView() {
   row('#decs', 'data-dec', pickDecade);
   row('#decs', 'data-today', pickToday);
   // 再點一次取消，只看外面那幾層；童限不能沒有年
-  row('#yrs', 'data-yr', v => { const y = Number(v); S.yr = S.yr === y && S.dec !== CHILD ? null : y; S.mo = S.day = null; });
-  row('#mos', 'data-mo', v => { const k = Number(v); S.mo = S.mo === k ? null : k; S.day = null; });
-  row('#days', 'data-day', v => { const d = Number(v); S.day = S.day === d ? null : d; });
+  row('#yrs', 'data-yr', v => { const y = Number(v); S.yr = S.yr === y && S.dec !== CHILD ? null : y; S.mo = S.day = S.hr = null; });
+  row('#mos', 'data-mo', v => { const k = Number(v); S.mo = S.mo === k ? null : k; S.day = S.hr = null; });
+  row('#days', 'data-day', v => { const d = Number(v); S.day = S.day === d ? null : d; S.hr = null; });
+  row('#hrs', 'data-hr', v => { const k = Number(v); S.hr = S.hr === k ? null : k; });
 }

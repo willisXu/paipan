@@ -33,6 +33,11 @@ const STATES = [
   ['紫微換一個大限、換一個宮', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs .chip2').nth(3).click(); await p.locator('#zw .pn').nth(4).click(); }, p => p.locator('#zw .cell.sel .ly.dec').count().then(n => n === 1)],
   // 四層運限全疊上：流月、流日的顏色落在一般的宮、選取的宮、三方四正的底色上
   ['紫微疊到今天（大限、流年、流月、流日、小限）', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs [data-today]').click(); }, async p => await p.locator('#zw .ly.day').count() === 12 && await p.locator('#zw .ly.xiao').count() === 1 && await p.locator('#zw .fst').count() === 41],
+  // 五層全疊上：流時的顏色落在一般的宮、選取的宮、三方四正的底色上；選到的那一格同時是標「今」的那一格（午時）
+  ['紫微疊到流時（今天的午時）', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs [data-today]').click(); await p.locator('#hrs [data-hr="6"]').click(); await p.locator('#zw .cell:has(.ly.hr.ming) .pn').click(); },
+    async p => await p.locator('#zw .ly.hr').count() === 12 && await p.locator('#zw .cell.sel .ly.hr.ming').count() === 1 && await p.locator('#hrs .chip2.cur[aria-pressed=true]').count() === 1 && await p.locator('#zw .fst').count() === 51],
+  ['流時選晚子時、不是今天', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs [data-today]').click(); await p.locator('#days .chip2').nth(8).click(); await p.locator('#hrs [data-hr="12"]').click(); },
+    async p => await p.locator('#hrs .chip2').count() === 13 && await p.locator('#hrs .cur').count() === 0 && (await p.locator('#zw .cyun').innerText()).includes('晚子時')],
   ['閏月的流月下半、選一天、換一個宮', async p => { await p.locator('#t-ziwei').click(); await p.locator('#decs .chip2', { hasText: '33–42 歲' }).click(); await p.locator('#yrs [data-yr="2025"]').click(); await p.locator('#mos [data-mo="7"]').click(); await p.locator('#days [data-day="20"]').click(); await p.locator('#zw .pn').nth(9).click(); },
     async p => await p.locator('#days .chip2').count() === 14 && await p.locator('#zw .cell.sel .ly.day').count() === 1],
   ['流派設定打開，改成中州派、立春年界、閏月算本月', async p => { await p.locator('#zopts summary').click(); await p.locator('#zhua').selectOption('zhongzhou'); await p.locator('#zyear').selectOption('lichun'); await p.locator('#zleap').selectOption('current'); await p.locator('#t-ziwei').click(); },

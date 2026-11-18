@@ -173,6 +173,11 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
     await tap(page, '#decs [data-today]');
     m = await page.evaluate(measure);
     ok(m.cellSpill.length === 0 && m.zwFits && m.overflow <= 0 && m.center.includes('流日'), `疊到流日，格子裡的星曜、流曜、宮名都還在格子裡：${m.cellSpill.join('、') || '沒有'}`);
+    // 再疊上流時（五層）：每一宮多一個宮名、多幾顆流曜，流時那一排在運限列裡，不印
+    await tap(page, '#hrs [data-hr="12"]');
+    m = await page.evaluate(measure);
+    ok(m.cellSpill.length === 0 && m.zwFits && m.overflow <= 0 && m.center.includes('流時 晚子時') && !m.shown['.yunbar'], `疊到流時也一樣：${m.cellSpill.join('、') || '沒有東西超出格子'}`);
+    await tap(page, '#hrs [data-hr="12"]');
     // 所選宮位的說明：這一宮在各層運限裡的宮名接在星曜後面，同一行（畫面上另起一行）
     const sameLine = await page.evaluate(() => [...document.querySelectorAll('#pdetail .sfsz .r')].every(r => { const yl = r.querySelector('.yl'), first = r.querySelector('.s').firstElementChild; return yl && Math.abs(yl.getBoundingClientRect().top - first.getBoundingClientRect().top) < 12; }));
     ok(sameLine, '所選宮位的說明裡，各層運限的宮名與流曜接在星曜後面，不另起一行');
@@ -233,7 +238,7 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
     const { ctx, page, errors } = await openSite(browser, server.url, { context: { viewport: A4 } });
     await page.emulateMedia({ media: 'print' });
     const N = 14, bad = [];
-    let layered = 0, pre = 0;
+    let layered = 0, pre = 0, hourly = 0;
     for (let i = 0; i < N; i++) {
       const b = i === 0 ? { y: 2024, m: 3, d: 10, h: 10, mi: 0 } : rndBirth(1930, 2024), g = pick(['男', '女']); // 第一張是還沒起運的小孩
       const tag = `${b.y}-${b.m}-${b.d} ${b.h}:${b.mi} ${g}`;
@@ -253,17 +258,18 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
       if (m.overflow > 0 || m.spill.length || !m.rows.every(r => r.fits && r.oneLine) || !m.relOneLine) bad.push(`${tag} 八字：${JSON.stringify([m.overflow, m.spill, m.rows.filter(r => !r.fits || !r.oneLine).map(r => r.sel), m.relOneLine])}`);
       await tap(page, '#t-ziwei');
       await tap(page, '#zw .cell', rnd(0, 11));
-      // 一層一層疊：大限（或童限）、流年、流月、流日，隨機停在某一層
-      const depth = rnd(0, 4);
+      // 一層一層疊：大限（或童限）、流年、流月、流日、流時，隨機停在某一層
+      const depth = i % 4 === 1 ? 5 : rnd(0, 5); // 每四張有一張一路疊到流時
       if (depth >= 1) await tap(page, '#decs .chip2', rnd(1, await page.locator('#decs .chip2').count() - 1));
       if (depth >= 2) await tap(page, '#yrs .chip2', rnd(0, await page.locator('#yrs .chip2').count() - 1));
       if (depth >= 3 && await page.locator('#mos .chip2').count()) await tap(page, '#mos .chip2', rnd(0, await page.locator('#mos .chip2').count() - 1));
       if (depth >= 4 && await page.locator('#days .chip2').count()) { await tap(page, '#days .chip2', rnd(0, await page.locator('#days .chip2').count() - 1)); layered++; }
+      if (depth >= 5 && await page.locator('#hrs .chip2').count()) { await tap(page, '#hrs .chip2', rnd(0, 12)); hourly++; }
       m = await page.evaluate(measure);
       if (m.overflow > 0 || m.cellSpill.length || !m.zwFits || m.zwCells !== 12) bad.push(`${tag} 紫微（疊 ${depth} 層）：${JSON.stringify([m.overflow, m.cellSpill, m.zwFits, m.zwCells])}`);
     }
     ok(bad.length === 0, `${N} 張隨機的盤，八字的三排和紫微的十二宮都排得下${bad.length ? '：\n      ' + bad.slice(0, 5).join('\n      ') : ''}`);
-    ok(layered >= 1 && pre >= 1, `其中有疊到流日的（${layered} 張）、選在起運前那一格的（${pre} 張）`);
+    ok(layered >= 2 && hourly >= 1 && pre >= 1, `其中有疊到流日的（${layered} 張）、再疊到流時的（${hourly} 張）、選在起運前那一格的（${pre} 張）`);
     ok(errors.length === 0, `無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
     await ctx.close();
   }

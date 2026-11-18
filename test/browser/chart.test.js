@@ -341,6 +341,84 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     await ctx.close();
   }
 
+  section('紫微的流時：一天十三格，從流日命宮起子時');
+  {
+    // 時鐘固定在 2026-11-11 12:00：農曆十月初三己丑日，午時。甲己日起甲子時；晚子時用次日（庚寅日）的子時，丙子
+    const { ctx, page, errors } = await open(browser, { init: [blockClipboard] });
+    const count = sel => page.locator(sel).count();
+    // 籤上看得到的字，後面註明是不是現在所在的那一格、有沒有選到
+    const chips = () => page.locator('#hrs .chip2').evaluateAll(els => els.map(e => { const c = e.cloneNode(true); c.querySelectorAll('.nowmark').forEach(x => x.remove()); return c.textContent.replace(/\s+/g, '') + (e.classList.contains('cur') ? '（今）' : '') + (e.getAttribute('aria-pressed') === 'true' ? '（選）' : ''); }));
+    const center = async () => (await text(page, '#zw .cyun')).split('\n').map(s => s.trim()).filter(Boolean);
+    // 這一層的命宮落在哪一宮；盤上沒有這一層時是 -1
+    const mingAt = async key => { const cell = page.locator(`#zw .cell:has(.ly.${key}.ming)`); return await cell.count() === 1 ? Number(await cell.getAttribute('data-pal')) : -1; };
+    await page.locator('#t-ziwei').click();
+    await page.locator('#decs .chip2.cur').click();
+    ok(!await page.locator('#hrs').isVisible(), '還沒選流日：沒有流時那一排');
+    await page.locator('#decs [data-today]').click();
+    const row = await chips();
+    ok(row.length === 13 && row[0] === '0–1點早子時甲子' && row[1] === '1–3點丑時乙丑' && row[6] === '11–13點午時庚午（今）' && row[11] === '21–23點亥時乙亥' && row[12] === '23–24點晚子時丙子',
+      `選了流日就多一排流時，十三格：${row[0]}、${row[1]} … ${row[6]} … ${row[11]}、${row[12]}`);
+    ok(row.filter(t => t.includes('（今）')).length === 1 && !row.some(t => t.includes('（選）')) && await count('#zw .ly.hr') === 0 && (await center()).length === 5,
+      '「看今天」只疊到流日：現在的時辰標「今」，但沒有替人選，盤上沒有流時');
+    await page.locator('#hrs [data-hr="6"]').click();
+    const dayPal = await mingAt('day'), noon = await mingAt('hr');
+    ok((noon - dayPal + 12) % 12 === 6 && await count('#zw .ly.hr') === 12 && await count('#zw .fst.hr') === 10 && await count('#zw .hua.o.hr') === 4,
+      `午時的命宮從流日命宮順數六宮（${dayPal} → ${noon}）；十二宮都標上流時的宮名，流曜十顆，庚干四化的四顆星各多一個「時」字頭的四化`);
+    ok((await center())[5] === '流時 午時 庚午（11:00–13:00）：太陽化祿、武曲化權、太陰化科、天同化忌' && await page.evaluate(() => document.activeElement.getAttribute('data-hr')) === '6',
+      `中宮多一行流時；焦點留在按下的那一格：${(await center())[5]}`);
+    const chart = await textChart(page);
+    ok(/\n流時 午時 庚午（11:00–13:00），命宮在本命.+：太陽化祿、武曲化權、太陰化科、天同化忌。流曜：.*時祿.*\n/.test(chart + '\n'), '文字盤的紫微運限多一行流時（命宮、四化、流曜）');
+    await page.locator('#hrs [data-hr="0"]').click();
+    const early = [await mingAt('hr'), (await center())[5]];
+    await page.locator('#hrs [data-hr="12"]').click();
+    const late = [await mingAt('hr'), (await center())[5]];
+    ok(early[0] === dayPal && late[0] === dayPal && early[1].startsWith('流時 早子時 甲子（00:00–01:00）：廉貞化祿') && late[1].startsWith('流時 晚子時 丙子（23:00–24:00，時干用次日的子時）：天同化祿'),
+      `早子時、晚子時的命宮都是流日命宮；晚子時的時干用次日的子時，中宮有寫：${late[1].slice(0, 32)}`);
+    await page.locator('#hrs [data-hr="12"]').click();
+    ok(await count('#zw .ly.hr') === 0 && (await center()).length === 5 && await count('#hrs .chip2') === 13 && await count('#hrs [aria-pressed=true]') === 0, '同一格再點一次取消流時，流日還在');
+    // 換一天：那一排換成那一天的十三格，選到的取消；不是今天，沒有「今」。次日（庚寅日）的早子時就是前一天晚子時的丙子
+    await page.locator('#hrs [data-hr="3"]').click();
+    await page.locator('#days [data-day="4"]').click();
+    const next = await chips();
+    ok(next.length === 13 && next[0] === '0–1點早子時丙子' && next[12] === '23–24點晚子時戊子' && !next.some(t => /今|選/.test(t)) && await count('#zw .ly.hr') === 0,
+      `換一天，流時取消、換成那一天的十三格，沒有「今」：${next[0]} … ${next[12]}`);
+    await page.locator('#hrs [data-hr="3"]').click();
+    await page.locator('#days [data-day="4"]').click();
+    ok(!await page.locator('#hrs').isVisible() && await count('#zw .ly.hr') === 0 && (await center()).length === 4, '取消流日：流時那一排收起來，盤上的流時也拿掉');
+    // 外面幾層一換，流時跟著清掉
+    await page.locator('#days [data-day="4"]').click();
+    await page.locator('#hrs [data-hr="8"]').click();
+    await page.locator('#mos .chip2').first().click();
+    const afterMonth = [await page.locator('#hrs').isVisible(), await count('#zw .ly.hr')];
+    await page.locator('#decs [data-today]').click();
+    await page.locator('#hrs [data-hr="8"]').click();
+    await page.locator('#decs [data-today]').click();
+    ok(!afterMonth[0] && afterMonth[1] === 0 && await count('#hrs [aria-pressed=true]') === 0 && await count('#zw .ly.hr') === 0, '換流月、再按一次「看今天」，選到的流時都取消');
+    // 換一張盤也是
+    await page.locator('#hrs [data-hr="8"]').click();
+    await born(page, '1990-06-15', '10:00');
+    ok(!await page.locator('#hrs').isVisible() && await count('#zw .ly').then(n => n === 0), '換一張盤：回到本命盤');
+    // 「今」照開頁時的鐘點：0 點是早子時，1 點整進丑時，22:59 還是亥時，23 點是晚子時
+    const nowAt = [];
+    for (const clock of ['2026-11-11T00:20:00+08:00', '2026-11-11T01:00:00+08:00', '2026-11-11T22:59:00+08:00', '2026-11-11T23:30:00+08:00']) {
+      await page.clock.setFixedTime(new Date(clock));
+      await page.reload();
+      await page.locator('#t-ziwei').click();
+      await page.locator('#decs [data-today]').click();
+      nowAt.push(((await chips()).find(t => t.includes('（今）')) || '').replace(/^.*點|（今）/g, '').slice(0, -2));
+    }
+    ok(nowAt.join(' ') === '早子時 丑時 亥時 晚子時', `「今」跟著鐘點走：0:20、1:00、22:59、23:30 分別標在 ${nowAt.join('、')}`);
+    ok(errors.length === 0, `無錯誤${errors.length ? '：' + errors.join(' | ') : ''}`);
+    await ctx.close();
+    // 手機上流時那一排要橫向捲：沒有選時辰的時候，捲到標「今」的那一格（午時是第七格，不捲就在畫面外）
+    const phone = await open(browser, { context: { viewport: { width: 390, height: 844 } } });
+    await phone.page.locator('#t-ziwei').click();
+    await phone.page.locator('#decs [data-today]').click();
+    const seen = await phone.page.evaluate(() => { const row = document.querySelector('#hrs'), r = row.getBoundingClientRect(), c = row.querySelector('.cur').getBoundingClientRect(); return [row.scrollWidth > row.clientWidth, c.left >= r.left && c.right <= r.right, row.querySelectorAll('[aria-pressed=true]').length]; });
+    ok(seen[0] && seen[1] && seen[2] === 0, `手機上流時那一排可以橫向捲，一出現就捲到標「今」的那一格：${JSON.stringify(seen)}`);
+    await phone.ctx.close();
+  }
+
   section('星名、宮干支由上往下一字一行，不靠字型的直排資料');
   {
     /* 星名本來用直排（writing-mode）排。直排時每個字佔多高，靠的是字型自己帶的直排資料；沒有這份資料的字型（例如文泉驛正黑）

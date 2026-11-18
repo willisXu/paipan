@@ -12,9 +12,10 @@ export function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 1800);
 }
 
-// 橫向捲動的列：把選到的項目捲到中間；沒有選到的（八字的流月可以不選），捲到標了「今」的那一顆。只改該列的 scrollLeft，不捲動頁面
+// 橫向捲動的列：把選到的項目捲到中間；沒有選到的（八字的流月、紫微的流時可以不選），捲到標了「今」的那一顆
+// （八字的籤裡是 .now，紫微的籤本身帶 .cur）。只改該列的 scrollLeft，不捲動頁面
 export function reveal(rowSel) {
-  const row = $(rowSel), el = row && (row.querySelector('[aria-pressed=true]') || row.querySelector('.now')?.parentElement);
+  const row = $(rowSel), el = row && (row.querySelector('[aria-pressed=true]') || row.querySelector('.cur') || row.querySelector('.now')?.parentElement);
   if (el && row.scrollWidth > row.clientWidth) row.scrollLeft = el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2;
 }
 // 重繪後把焦點放回同一顆按鈕，鍵盤操作才不會掉到頁首

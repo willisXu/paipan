@@ -50,6 +50,7 @@ async function monkey(browser, seed, context) {
     點流年籤: () => tapAny('#yrs .chip2'),
     點流月: () => tapAny('#mos .chip2'),
     點流日: () => tapAny('#days .chip2'),
+    點流時: () => tapAny('#hrs .chip2'),
     看今天: () => tap(page.locator('#decs [data-today]')),
     點宮位: () => tapAny('#zw .cell'),
     // 流派設定平常收著，看不到的下拉選單沒辦法用滑鼠選，直接設值（收著的時候設定值照樣算數）
@@ -73,11 +74,11 @@ async function monkey(browser, seed, context) {
           n('#zw .cell'), n('#decs .chip2'), n('#decs .chip2[aria-pressed=true]'), n('#zw .pn[aria-pressed=true]')].join(),
         years: n('#liunian .yun'), now: Math.max(n('#dayun .now'), n('#liunian .now'), n('#liuyue .now')),
         months: `${n('#liuyue .yun')},${n('#liuyue .yun[aria-pressed=true]')},${/月 與原局/.test($('#ix-title').textContent) ? 1 : 0}`, tabs: `${$('#p-bazi').hidden},${$('#p-ziwei').hidden}`,
-        // 紫微疊了幾層：各層的宮名個數（大限／流年／流月／流日）、各排選到幾個、流月流日兩排有沒有顯示、小限標記、各排的「今」
-        layers: ['dec', 'yr', 'mo', 'day'].map(k => n(`#zw .ly.${k}`)).join('/'),
-        picked: ['#yrs', '#mos', '#days'].map(s => n(`${s} .chip2[aria-pressed=true]`)).join('/'),
-        rows: ['#yrs', '#mos', '#days'].map(s => ($(s).hidden ? 0 : 1)).join('/'),
-        xiao: n('#zw .ly.xiao'), marks: Math.max(...['#decs', '#yrs', '#mos', '#days'].map(s => n(`${s} .nowmark`))), opts: $('#zopts-now').textContent,
+        // 紫微疊了幾層：各層的宮名個數（大限／流年／流月／流日／流時）、各排選到幾個、流年以下四排有沒有顯示、小限標記、各排的「今」、流時那一排有幾格
+        layers: ['dec', 'yr', 'mo', 'day', 'hr'].map(k => n(`#zw .ly.${k}`)).join('/'),
+        picked: ['#yrs', '#mos', '#days', '#hrs'].map(s => n(`${s} .chip2[aria-pressed=true]`)).join('/'),
+        rows: ['#yrs', '#mos', '#days', '#hrs'].map(s => ($(s).hidden ? 0 : 1)).join('/'),
+        xiao: n('#zw .ly.xiao'), marks: Math.max(...['#decs', '#yrs', '#mos', '#days', '#hrs'].map(s => n(`${s} .nowmark`))), opts: $('#zopts-now').textContent, hours: n('#hrs .chip2'),
       };
     });
     const found = [];
@@ -90,11 +91,11 @@ async function monkey(browser, seed, context) {
     if (!['12,0,0', '12,1,1'].includes(st.months)) found.push(`八字的流月不對（個數、選到幾個、標題有沒有寫月）：${st.months}`);
     if (st.tabs !== 'false,true' && st.tabs !== 'true,false') found.push('兩個分頁同時顯示或同時隱藏');
     /* 紫微的運限一層套一層：裡面那層選了，外面的一定也選了。每一層疊上去就是十二個宮名；
-       選了大限才有流年那一排，選了流年才有流月那一排和小限，選了流月才有流日那一排 */
-    const [yr, mo, day] = st.picked.split('/').map(Number), dec = st.layers.startsWith('12') ? 1 : 0;
-    if (st.layers !== [dec, yr, mo, day].map(on => (on ? 12 : 0)).join('/') || (yr && !dec) || (mo && !yr) || (day && !mo)
-      || st.rows !== `${dec}/${yr}/${mo}` || st.xiao > yr || st.marks > 1 || !st.opts.startsWith('目前')) {
-      found.push(`紫微的運限疊法不對：宮名 ${st.layers}，選到 ${st.picked}，顯示的排 ${st.rows}，小限 ${st.xiao}，「今」${st.marks}，設定「${st.opts}」`);
+       選了大限才有流年那一排，選了流年才有流月那一排和小限，選了流月才有流日那一排，選了流日才有流時那一排（十三格） */
+    const [yr, mo, day, hr] = st.picked.split('/').map(Number), dec = st.layers.startsWith('12') ? 1 : 0;
+    if (st.layers !== [dec, yr, mo, day, hr].map(on => (on ? 12 : 0)).join('/') || (yr && !dec) || (mo && !yr) || (day && !mo) || (hr && !day)
+      || st.rows !== `${dec}/${yr}/${mo}/${day}` || st.hours !== (day ? 13 : 0) || st.xiao > yr || st.marks > 1 || !st.opts.startsWith('目前')) {
+      found.push(`紫微的運限疊法不對：宮名 ${st.layers}，選到 ${st.picked}，顯示的排 ${st.rows}，流時 ${st.hours} 格，小限 ${st.xiao}，「今」${st.marks}，設定「${st.opts}」`);
     }
     if (found.length) problem = `第 ${k + 1} 步「${name}」之後：${found.join('；')}。最近的操作：${log.slice(-10).join(' → ')}`;
     if (st.err) wrong++; else charts++;

@@ -1,7 +1,7 @@
 /* 瀏覽器測試（畫面對引擎）：node test/browser/oracle.test.js [種子]。先跑 node scripts/build.js。
    快照測的是「畫面和上次一樣」，這一支測的是「畫面和引擎一樣」：隨機排幾十張盤（含各種流派設定、閏月出生、
    生在立春和正月初一之間），隨機點運限與宮位，每一步把畫面上顯示的東西和引擎用同一組輸入算出來的結果逐項比對——
-   紫微：運限四排的籤、十二宮每一格的星曜與亮度、生年與各層四化、流曜、各層宮名、小限、十二神、三方四正的標示、中宮的運限說明；
+   紫微：運限五排的籤、十二宮每一格的星曜與亮度、生年與各層四化、流曜、各層宮名、小限、十二神、三方四正的標示、中宮的運限說明；
    八字：四柱、十一格運、流年、十二個流月、原局關係、運歲與流月的關係。
    比對的一邊是頁面的畫法（src/app），另一邊是這裡照引擎的輸出另外組出來的，兩邊各寫各的。 */
 import fs from 'node:fs';
@@ -15,8 +15,11 @@ import { seeded } from '../helpers/random.js';
 import { chartOf } from '../helpers/charts.js';
 
 const SEED = Number(process.argv[2]) || 2026111801;
-const CHARTS = 36, STEPS = 11;
-const TODAY = '2026-11-11', ZW_YEAR = 2026, BZ_YEAR = 2026; // 測試用的固定時鐘：農曆丙午年十月初三，立春年也是 2026
+const CHARTS = 36, STEPS = 12;
+const TODAY = '2026-11-11', ZW_YEAR = 2026, BZ_YEAR = 2026, NOW_HR = 6; // 測試用的固定時鐘：農曆丙午年十月初三中午十二點（午時，流時的第 6 格），立春年也是 2026
+// 流時十三格的名稱與鐘點：這裡自己列，不讀引擎回傳的 label、from、to
+const HOUR_LABEL = ['早子時', '丑時', '寅時', '卯時', '辰時', '巳時', '午時', '未時', '申時', '酉時', '戌時', '亥時', '晚子時'];
+const HOUR_CLOCK = [[0, 1], [1, 3], [3, 5], [5, 7], [7, 9], [9, 11], [11, 13], [13, 15], [15, 17], [17, 19], [19, 21], [21, 23], [23, 24]];
 const HUA = ['祿', '權', '科', '忌'];
 const span = (a, b) => (a === b ? `${a}` : `${a}–${b}`);
 const monthDay = date => { const [, m, d] = date.split('-').map(Number); return `${m}/${d}`; };
@@ -33,13 +36,14 @@ const readPage = page => page.evaluate(() => {
   const sel = one('#zw .cell.sel');
   return {
     err: !one('#err').hidden,
-    state: { dec: pressed('#decs', 'data-dec'), yr: pressed('#yrs', 'data-yr'), mo: pressed('#mos', 'data-mo'), day: pressed('#days', 'data-day'), pal: sel ? Number(sel.dataset.pal) : null,
+    state: { dec: pressed('#decs', 'data-dec'), yr: pressed('#yrs', 'data-yr'), mo: pressed('#mos', 'data-mo'), day: pressed('#days', 'data-day'), hr: pressed('#hrs', 'data-hr'), pal: sel ? Number(sel.dataset.pal) : null,
       dy: pressed('#dayun', 'data-dy'), ln: pressed('#liunian', 'data-ln'), lm: pressed('#liuyue', 'data-lm') },
-    hidden: ['#yrs', '#mos', '#days'].map(s => one(s).hidden),
+    hidden: ['#yrs', '#mos', '#days', '#hrs'].map(s => one(s).hidden),
     decs: all(document, '#decs [data-dec]').map(b => [b.getAttribute('data-dec'), tx(b), b.classList.contains('cur')]),
     yrs: all(document, '#yrs [data-yr]').map(b => [b.getAttribute('data-yr'), tx(b), b.classList.contains('cur')]),
     mos: all(document, '#mos [data-mo]').map(b => [b.getAttribute('data-mo'), kid(b, 'small'), kid(b, 'span:not(.nowmark)'), b.classList.contains('cur')]),
     days: all(document, '#days [data-day]').map(b => [b.getAttribute('data-day'), kid(b, 'small'), kid(b, 'span:not(.nowmark)'), kid(b, 'b'), b.classList.contains('cur')]),
+    hrs: all(document, '#hrs [data-hr]').map(b => [b.getAttribute('data-hr'), kid(b, 'small'), kid(b, 'span:not(.nowmark)'), b.classList.contains('cur')]),
     cells: all(document, '#zw .cell').map(c => ({
       i: Number(c.dataset.pal), sel: c.classList.contains('sel'), role: tx(c.querySelector('.rolemark')),
       stars: all(c, '.st').map(s => [tx(s.querySelector('.n')), tx(s.querySelector('.br')), all(s, '.hua').map(tx).join(',')]),
@@ -66,21 +70,23 @@ function expected({ bz, zw }, st) {
   const sp = dec === null ? null : spans.find(s => (dec === 'child' ? s.child : s.palace === dec));
   const months = dec === null || yr === null ? [] : PP.zwLiuYue(zw, yr), mo = st.mo === null ? null : months[Number(st.mo)];
   const days = mo ? PP.zwLiuRi(zw, mo) : [], day = st.day === null ? null : days.find(x => x.day === Number(st.day));
+  const hours = day ? PP.zwLiuShi(zw, day) : [], hr = st.hr === null ? null : hours[Number(st.hr)];
   const L = dec === null ? null : {
     dec: dec === 'child' ? PP.zwTongXian(zw, age) : PP.zwDaXian(zw, dec), yr: yr === null ? null : PP.zwLiuNian(zw, yr),
-    xiao: age === null ? null : PP.zwXiaoXian(zw, age), mo, day,
+    xiao: age === null ? null : PP.zwXiaoXian(zw, age), mo, day, hr,
   };
-  const stack = !L ? [] : [['dec', dec === 'child' ? '童' : '大', L.dec], ['yr', '年', L.yr], ['mo', '月', L.mo], ['day', '日', L.day]].filter(x => x[2]);
+  const stack = !L ? [] : [['dec', dec === 'child' ? '童' : '大', L.dec], ['yr', '年', L.yr], ['mo', '月', L.mo], ['day', '日', L.day], ['hr', '時', L.hr]].filter(x => x[2]);
   const curAge = ZW_YEAR - zw.birthYear + 1, curSpan = spans.find(s => curAge >= s.ages[0] && curAge <= s.ages[1]);
   const now = (cur, text) => (cur ? `今${text}` : text); // 今天所在的那一顆，前面多一個「今」
   const role = i => (st.pal === null ? '' : i === (st.pal + 6) % 12 ? '對宮' : i === (st.pal + 4) % 12 || i === (st.pal + 8) % 12 ? '三合' : '');
   const hua = layer => layer.hua.map((n, k) => `${n}化${HUA[k]}`).join('、');
-  const center = !L ? [['muted', '目前是本命盤。點上方的大限、流年、流月、流日，一層一層疊上運限的宮名、四化和流曜。']] : [
+  const center = !L ? [['muted', '目前是本命盤。點上方的大限、流年、流月、流日、流時，一層一層疊上運限的宮名、四化和流曜。']] : [
     L.dec && ['d', dec === 'child' ? `童限 ${age} 歲 ${L.dec.gz}（${P[L.dec.index].name}）：${hua(L.dec)}` : `大限 ${span(...L.dec.ages)} 歲 ${L.dec.gz}：${hua(L.dec)}`],
     L.yr && ['yv', `流年 ${L.yr.year} ${L.yr.gz}：${hua(L.yr)}`],
     L.xiao && ['xv', `小限 ${age} 歲 ${L.xiao.gz}（${P[L.xiao.index].name}）：${hua(L.xiao)}`],
     L.mo && ['mv', `流月 ${L.mo.label} ${L.mo.gz}（${monthDay(L.mo.from)}–${monthDay(L.mo.to)}）：${hua(L.mo)}`],
     L.day && ['dv', `流日 ${L.day.label} ${L.day.gz}（${L.day.date}）：${hua(L.day)}`],
+    L.hr && ['hv', `流時 ${HOUR_LABEL[st.hr]} ${L.hr.gz}（${pad(HOUR_CLOCK[st.hr][0])}:00–${pad(HOUR_CLOCK[st.hr][1])}:00${Number(st.hr) === 12 ? '，時干用次日的子時' : ''}）：${hua(L.hr)}`],
   ].filter(Boolean);
   // 八字：選到的那一格運（-1 是起運前）和流年
   const dy = Number(st.dy), pre = dy === -1, D = pre ? bz.pre : bz.dayun[dy], N = D.years.find(n => n.year === Number(st.ln));
@@ -92,11 +98,12 @@ function expected({ bz, zw }, st) {
   const step = [bz.pre, ...bz.dayun].findIndex(s => s.startDate <= TODAY && TODAY < s.endDate) - 1; // 今天走到哪一格；都不是的時候是 -2
   const last = D.years.length - 1;
   return {
-    hidden: [!sp, !months.length, !days.length],
+    hidden: [!sp, !months.length, !days.length, !hours.length],
     decs: [['', '本命盤', false], ...spans.map(s => [s.child ? 'child' : String(s.palace), now(s === curSpan, `${span(...s.ages)} 歲${s.child ? '童限' : s.gz}`), s === curSpan])],
     yrs: !sp ? [] : Array.from({ length: sp.ages[1] - sp.ages[0] + 1 }, (_, k) => { const y = sp.years[0] + k; return [String(y), now(y === ZW_YEAR, `${y}${PP.yearGZ(y)} ${sp.ages[0] + k} 歲`), y === ZW_YEAR]; }),
     mos: months.map(m => [String(m.k), `${monthDay(m.from)} 起`, `${m.label}${m.gz}`, m.from <= TODAY && TODAY <= m.to]),
     days: days.map(d => [String(d.day), monthDay(d.date), d.label, d.gz, d.date === TODAY]),
+    hrs: hours.map((h, k) => [String(k), `${HOUR_CLOCK[k][0]}–${HOUR_CLOCK[k][1]} 點`, `${HOUR_LABEL[k]}${h.gz}`, day.date === TODAY && k === NOW_HR]),
     cells: P.map((p, i) => ({
       i, sel: i === st.pal, role: role(i),
       stars: p.majorStars.concat(p.minorStars, p.adjectiveStars).map(s => [s.name, s.brightness || '',
@@ -139,7 +146,7 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
   await page.locator('#t-ziwei').click();
   const tapAny = async sel => { const n = await page.locator(sel).count(); if (n) await page.locator(sel).nth(rnd(0, n - 1)).click(); return n; };
   const actions = {
-    點大限: () => tapAny('#decs [data-dec]'), 點流年: () => tapAny('#yrs [data-yr]'), 點流月: () => tapAny('#mos [data-mo]'), 點流日: () => tapAny('#days [data-day]'),
+    點大限: () => tapAny('#decs [data-dec]'), 點流年: () => tapAny('#yrs [data-yr]'), 點流月: () => tapAny('#mos [data-mo]'), 點流日: () => tapAny('#days [data-day]'), 點流時: () => tapAny('#hrs [data-hr]'),
     點一個大限或童限: () => tapAny('#decs [data-dec]:not([data-dec=""])'), 點童限: () => page.locator('#decs [data-dec="child"]').click(),
     點有閏月的流年: async () => {
       const ys = (await page.locator('#yrs [data-yr]').evaluateAll(bs => bs.map(b => Number(b.dataset.yr)))).filter(y => LunarYear.fromYear(y).getLeapMonth());
@@ -147,6 +154,7 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
     },
     // 閏月的那一段或兩段（月中分界時拆成上半、下半）：有才點
     點閏月: async () => { const b = page.locator('#mos [data-mo]').filter({ hasText: '閏' }); const n = await b.count(); if (n) await b.nth(rnd(0, n - 1)).click(); },
+    點晚子時: async () => { const b = page.locator('#hrs [data-hr="12"]'); if (await b.count()) await b.click(); },
     看今天: async () => { const b = page.locator('#decs [data-today]'); if (await b.count()) await b.click(); },
     點宮位: () => tapAny('#zw .cell .pn'),
     // 八字分頁沒有顯示出來，直接送出點擊事件（畫面照樣重畫）
@@ -154,10 +162,10 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
     點八字流年: () => page.evaluate(k => { const b = document.querySelectorAll('#liunian .yun'); b[k % b.length].click(); }, rnd(0, 11)),
     點八字流月: () => page.evaluate(k => { document.querySelectorAll('#liuyue .yun')[k].click(); }, rnd(0, 11)),
   };
-  // 每張盤先一層一層疊到流日、點一個宮，後面再隨便點
-  const opening = ['排盤', '點一個大限或童限', '點流年', '點流月', '點流日', '點宮位'];
-  const openingLeap = ['排盤', '點一個大限或童限', '點有閏月的流年', '點閏月', '點流日', '點宮位']; // 每四張盤有一張專挑閏月的流月
-  const openingChild = ['排盤', '點童限', '點流年', '點流月', '點流日', '點宮位'];                  // 再一張從童限疊起
+  // 每張盤先一層一層疊到流時、點一個宮，後面再隨便點
+  const opening = ['排盤', '點一個大限或童限', '點流年', '點流月', '點流日', '點流時', '點宮位'];
+  const openingLeap = ['排盤', '點一個大限或童限', '點有閏月的流年', '點閏月', '點流日', '點晚子時', '點宮位']; // 每四張盤有一張專挑閏月的流月，流時挑晚子時
+  const openingChild = ['排盤', '點童限', '點流年', '點流月', '點流日', '點流時', '點宮位'];                  // 再一張從童限疊起
   // 立春和正月初一之間的一天：年界設成立春時，這種生日的生年和農曆年不同
   const between = () => {
     for (;;) {
@@ -168,9 +176,9 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
       return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
     }
   };
-  const names = ['點大限', '點一個大限或童限', '點流年', '點流年', '點流月', '點閏月', '點流日', '點流日', '看今天', '點宮位', '點運', '點八字流年', '點八字流月', '點八字流月'];
+  const names = ['點大限', '點一個大限或童限', '點流年', '點流年', '點流月', '點閏月', '點流日', '點流日', '點流時', '點流時', '點晚子時', '看今天', '點宮位', '點運', '點八字流年', '點八字流月', '點八字流月'];
   const problems = []; let steps = 0, charts = 0;
-  const seen = { dec: 0, child: 0, yr: 0, mo: 0, day: 0, leapHalf: 0, xiao: 0, natal: 0, lichunMoved: 0, leapBirth: 0, bzMonth: 0, bzPre: 0, opts: new Set() };
+  const seen = { dec: 0, child: 0, yr: 0, mo: 0, day: 0, hr: 0, lateZi: 0, nowHr: 0, leapHalf: 0, xiao: 0, natal: 0, lichunMoved: 0, leapBirth: 0, bzMonth: 0, bzPre: 0, opts: new Set() };
   for (let c = 0; c < CHARTS && problems.length < 6; c++) {
     let o = rndBirth();
     if (c % 6 === 1) { // 閏月出生
@@ -207,14 +215,16 @@ section(`畫面對引擎：${CHARTS} 張隨機的盤，每張隨機點 ${STEPS} 
       if (st.yr !== null) { seen.yr++; seen.xiao++; }
       if (st.mo !== null) { seen.mo++; if (/半/.test(got.mos.find(m => m[0] === st.mo)?.[2] || '')) seen.leapHalf++; }
       if (st.day !== null) seen.day++;
+      if (st.hr !== null) { seen.hr++; if (st.hr === '12') seen.lateZi++; }
+      if (got.hrs.some(h => h[3])) seen.nowHr++;
       if (st.lm !== null) seen.bzMonth++;
       if (st.dy === '-1') seen.bzPre++;
     }
   }
   for (const p of problems) console.log('    ' + p);
   eq(problems.length, 0, `${charts} 張盤共 ${steps} 步，畫面和引擎不同的步數`);
-  ok(seen.dec > 150 && seen.child > 30 && seen.yr > 150 && seen.mo > 100 && seen.day > 50 && seen.leapHalf > 5 && seen.natal > 30 && seen.lichunMoved >= 5 && seen.leapBirth >= 5 && seen.opts.size >= 10 && seen.bzMonth > 25 && seen.bzPre > 5,
-    `各種狀態都比到了：本命盤 ${seen.natal} 步、大限 ${seen.dec}、童限 ${seen.child}、流年（含小限）${seen.yr}、流月 ${seen.mo}（閏月半月 ${seen.leapHalf}）、流日 ${seen.day}；` +
+  ok(seen.dec > 150 && seen.child > 30 && seen.yr > 150 && seen.mo > 100 && seen.day > 50 && seen.hr > 40 && seen.lateZi >= 8 && seen.nowHr >= 5 && seen.leapHalf > 5 && seen.natal > 30 && seen.lichunMoved >= 5 && seen.leapBirth >= 5 && seen.opts.size >= 10 && seen.bzMonth > 25 && seen.bzPre > 5,
+    `各種狀態都比到了：本命盤 ${seen.natal} 步、大限 ${seen.dec}、童限 ${seen.child}、流年（含小限）${seen.yr}、流月 ${seen.mo}（閏月半月 ${seen.leapHalf}）、流日 ${seen.day}、流時 ${seen.hr}（晚子時 ${seen.lateZi}，選的是今天而標出「今」的 ${seen.nowHr} 步）；` +
     `生年因立春年界而不同的盤 ${seen.lichunMoved} 張、閏月出生 ${seen.leapBirth} 張、流派設定組合 ${seen.opts.size} 種；八字選了流月 ${seen.bzMonth} 步、起運前那一格 ${seen.bzPre} 步`);
   eq(errors, [], '頁面沒有丟出例外');
   await ctx.close(); await browser.close();

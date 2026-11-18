@@ -5,7 +5,7 @@
   --accent: #5A3D6E; --accent-ink: #FFFFFF; --accent-soft: #EEE8F3; --accent-line: #CDBCD9;
   --wood: #2B7648; --fire: #B8392C; --earth: #82603D; --metal: #836309; --water: #1F5C9C;
   --lu: #2B7648; --quan: #A64F08; --ke: #2563A8; --ji: #B42318; --hua-ink: #FFFFFF;
-  --lay-dec: #5A3D6E; --lay-yr: #0D7480; --lay-mo: #8A5300; --lay-day: #A3216E;
+  --lay-dec: #5A3D6E; --lay-yr: #0D7480; --lay-mo: #8A5300; --lay-day: #A3216E; --lay-hr: #4C6A1E;
   --warn: #7A4A00; --warn-bg: #FBF0DD; --err: #A3261B; --err-bg: #FBE9E6;
   --f-display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", serif;
   --f-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
@@ -18,7 +18,7 @@
     --accent: #C9B0DF; --accent-ink: #1A1320; --accent-soft: #272030; --accent-line: #4E3F5E;
     --wood: #6CC28E; --fire: #F2806F; --earth: #CDA680; --metal: #E8BE55; --water: #78AEEC;
     --lu: #6CC28E; --quan: #F2A35E; --ke: #7FB2F2; --ji: #F47E70; --hua-ink: #0F1418;
-    --lay-dec: #C9B0DF; --lay-yr: #5FCAD3; --lay-mo: #E3B25A; --lay-day: #F29BC4;
+    --lay-dec: #C9B0DF; --lay-yr: #5FCAD3; --lay-mo: #E3B25A; --lay-day: #F29BC4; --lay-hr: #B5D16E;
     --warn: #F1C47A; --warn-bg: #2E2415; --err: #F69A8E; --err-bg: #34191A;
     color-scheme: dark;
   }
@@ -30,7 +30,7 @@
     --accent: #C9B0DF; --accent-ink: #1A1320; --accent-soft: #272030; --accent-line: #4E3F5E;
     --wood: #6CC28E; --fire: #F2806F; --earth: #CDA680; --metal: #E8BE55; --water: #78AEEC;
     --lu: #6CC28E; --quan: #F2A35E; --ke: #7FB2F2; --ji: #F47E70; --hua-ink: #0F1418;
-    --lay-dec: #C9B0DF; --lay-yr: #5FCAD3; --lay-mo: #E3B25A; --lay-day: #F29BC4;
+    --lay-dec: #C9B0DF; --lay-yr: #5FCAD3; --lay-mo: #E3B25A; --lay-day: #F29BC4; --lay-hr: #B5D16E;
     --warn: #F1C47A; --warn-bg: #2E2415; --err: #F69A8E; --err-bg: #34191A;
     color-scheme: dark;
   }
@@ -219,20 +219,23 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .chips.mos .chip2.cur:not([aria-pressed=true]) { border-color: var(--lay-mo); color: var(--lay-mo); }
 .chips.days .chip2[aria-pressed=true] { background: var(--lay-day); border-color: var(--lay-day); color: var(--hua-ink); }
 .chips.days .chip2.cur:not([aria-pressed=true]) { border-color: var(--lay-day); color: var(--lay-day); }
-/* 流月、流日的籤多（一年十二到十四段、一個月三十天），排成小格：公曆日期一行小字在上，「今」掛在右上角 */
-.chips.mos, .chips.days { gap: 4px; padding-top: 7px; }
+.chips.hrs .chip2[aria-pressed=true] { background: var(--lay-hr); border-color: var(--lay-hr); color: var(--hua-ink); }
+.chips.hrs .chip2.cur:not([aria-pressed=true]) { border-color: var(--lay-hr); color: var(--lay-hr); }
+/* 流月、流日、流時的籤多（一年十二到十四段、一個月三十天、一天十三格），排成小格：公曆日期或鐘點一行小字在上，「今」掛在右上角 */
+.chips.mos, .chips.days, .chips.hrs { gap: 4px; padding-top: 7px; }
 .chips.days { gap: 3px; }
-.chips.mos .rowlabel, .chips.days .rowlabel { margin-right: 6px; }
-.chips.mos .chip2, .chips.days .chip2 { position: relative; display: inline-grid; justify-items: center; align-content: center; border-radius: 9px; line-height: 1.2; }
-.chips.mos .chip2 { padding: 3px 7px 4px; }
+.chips.mos .rowlabel, .chips.days .rowlabel, .chips.hrs .rowlabel { margin-right: 6px; }
+.chips.mos .chip2, .chips.days .chip2, .chips.hrs .chip2 { position: relative; display: inline-grid; justify-items: center; align-content: center; border-radius: 9px; line-height: 1.2; }
+.chips.mos .chip2, .chips.hrs .chip2 { padding: 3px 7px 4px; }
 .chips.days .chip2 { padding: 3px 1px 4px; min-width: 29px; font-size: 12px; }
 .chips.days .chip2 b { font-size: 12px; margin: 0; }
 .chip2 small { font-size: 10.5px; color: var(--ink-3); }
 .chips.days .chip2 small { font-size: 10px; }
 .chip2[aria-pressed=true] small, .chip2.cur small { color: inherit; }
-.chips.mos .nowmark, .chips.days .nowmark { position: absolute; top: -8px; right: -4px; margin: 0; background: var(--sheet); font-size: 10px; }
+.chips.mos .nowmark, .chips.days .nowmark, .chips.hrs .nowmark { position: absolute; top: -8px; right: -4px; margin: 0; background: var(--sheet); font-size: 10px; }
 .chips.mos .chip2[aria-pressed=true] .nowmark { color: var(--lay-mo); }
 .chips.days .chip2[aria-pressed=true] .nowmark { color: var(--lay-day); }
+.chips.hrs .chip2[aria-pressed=true] .nowmark { color: var(--lay-hr); }
 /* 「看今天」是一個動作，不是選項：虛線框，和旁邊可以按下去的籤分開 */
 .jump { border: 1px dashed var(--accent); background: none; color: var(--accent); border-radius: 999px; padding: 4px 11px; cursor: pointer; font-size: 13px; }
 .jump:hover { background: var(--accent-soft); }
@@ -271,18 +274,20 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .hua.o.yr { border-style: dashed; }
 .hua.o.mo { border-style: dotted; }
 .hua.o.day { border-radius: 8px; }
+.hua.o.hr { border: 3px double currentColor; padding: 0; } /* 流時：雙線框 */
 /* 流曜：各層運限帶出來的小星，顏色跟著那一層 */
 .fsts { display: flex; flex-wrap: wrap; gap: 2px 6px; }
 .fst { font-size: 11.5px; line-height: 1.35; white-space: nowrap; }
-.fst.dec { color: var(--lay-dec); } .fst.yr { color: var(--lay-yr); } .fst.mo { color: var(--lay-mo); } .fst.day { color: var(--lay-day); }
+.fst.dec { color: var(--lay-dec); } .fst.yr { color: var(--lay-yr); } .fst.mo { color: var(--lay-mo); } .fst.day { color: var(--lay-day); } .fst.hr { color: var(--lay-hr); }
 .lys { display: flex; flex-wrap: wrap; gap: 4px; }
 .ly { font-size: 11.5px; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; white-space: nowrap; }
 .ly i { font-style: normal; margin-right: 2px; }
-.ly.dec { color: var(--lay-dec); } .ly.yr { color: var(--lay-yr); } .ly.mo { color: var(--lay-mo); } .ly.day { color: var(--lay-day); }
+.ly.dec { color: var(--lay-dec); } .ly.yr { color: var(--lay-yr); } .ly.mo { color: var(--lay-mo); } .ly.day { color: var(--lay-day); } .ly.hr { color: var(--lay-hr); }
 .ly.dec.ming { background: var(--lay-dec); border-color: var(--lay-dec); color: var(--sheet); }
 .ly.yr.ming { background: var(--lay-yr); border-color: var(--lay-yr); color: var(--sheet); }
 .ly.mo.ming { background: var(--lay-mo); border-color: var(--lay-mo); color: var(--sheet); }
 .ly.day.ming { background: var(--lay-day); border-color: var(--lay-day); color: var(--sheet); }
+.ly.hr.ming { background: var(--lay-hr); border-color: var(--lay-hr); color: var(--sheet); }
 .ly.xiao { color: var(--ink-2); border-style: dotted; }
 .foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--rule); padding-top: 5px; }
 /* 左下角的十二神：一欄四個（十二長生、博士、歲前、將前）；選了流年，歲前、將前的右邊多一欄流年的 */
@@ -305,10 +310,11 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .center .cyun { border-top: 1px dashed var(--rule-2); padding-top: 8px; font-size: 13px; }
 .center .cyun b { font-weight: 500; }
 .center .cyun .d { color: var(--lay-dec); } .center .cyun .yv { color: var(--lay-yr); } .center .cyun .xv { color: var(--ink-2); }
-.center .cyun .mv { color: var(--lay-mo); } .center .cyun .dv { color: var(--lay-day); }
+.center .cyun .mv { color: var(--lay-mo); } .center .cyun .dv { color: var(--lay-day); } .center .cyun .hv { color: var(--lay-hr); }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--ink-2); align-items: center; margin-top: 12px; }
 .legend .hua { padding: 2px 4px; }
 .legend .hua.o { padding: 1px 3px; }
+.legend .hua.o.hr { padding: 0 2px; }
 .legend span { display: inline-flex; gap: 5px; align-items: center; }
 
 .pd-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 12px; }

@@ -71,6 +71,7 @@ export function textChart({ atDate = '' } = {}) {
     if (L.xiao) lines.push(`小限 ${L.age} 歲 ${L.xiao.gz}，在本命${at(L.xiao)}：${hua(L.xiao)}`);
     if (L.mo) lines.push(one(`流月 ${L.mo.label} ${L.mo.gz}（${L.mo.from} 到 ${L.mo.to}）`, L.mo));
     if (L.day) lines.push(one(`流日 ${L.day.label} ${L.day.gz}（${L.day.date}）`, L.day));
+    if (L.hr) lines.push(one(`流時 ${L.hr.label} ${L.hr.gz}（${L.hr.from}–${L.hr.to}${L.hr.k === 12 ? '，時干用次日的子時' : ''}）`, L.hr));
   } else if (atDate) {
     lines.push('', '【紫微運限】', '這一天不在列出的運限範圍內（還沒出生，或已過了第十個大限），沒有疊運限。');
   }
