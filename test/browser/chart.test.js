@@ -360,6 +360,13 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
       `選了流日就多一排流時，十三格：${row[0]}、${row[1]} … ${row[6]} … ${row[11]}、${row[12]}`);
     ok(row.filter(t => t.includes('（今）')).length === 1 && !row.some(t => t.includes('（選）')) && await count('#zw .ly.hr') === 0 && (await center()).length === 5,
       '「看今天」只疊到流日：現在的時辰標「今」，但沒有替人選，盤上沒有流時');
+    // 版面：寬的版面（視窗 1120 像素以上）十三格排成一行；窄一點固定排兩行，不讓最後一格自己掉到第二行。回傳每一行有哪幾格、有沒有超出那一排
+    const hourRows = p => p.locator('#hrs .chip2').evaluateAll(els => {
+      const box = e => e.getBoundingClientRect(), row = box(els[0].parentElement), tops = [...new Set(els.map(e => Math.round(box(e).top)))];
+      return { rows: tops.map(t => els.filter(e => Math.round(box(e).top) === t).map(e => e.dataset.hr).join(',')), inside: els.every(e => box(e).right <= row.right + 0.5) };
+    });
+    const wide = await hourRows(page);
+    ok(wide.rows.length === 1 && wide.inside, `寬的版面上流時十三格排成一行、沒有超出那一排（${wide.rows.length} 行）`);
     await page.locator('#hrs [data-hr="6"]').click();
     const dayPal = await mingAt('day'), noon = await mingAt('hr');
     ok((noon - dayPal + 12) % 12 === 6 && await count('#zw .ly.hr') === 12 && await count('#zw .fst.hr') === 10 && await count('#zw .hua.o.hr') === 4,
@@ -417,6 +424,14 @@ const setFault = (page, fault) => page.evaluate(v => { window.iztroFault = v; },
     const seen = await phone.page.evaluate(() => { const row = document.querySelector('#hrs'), r = row.getBoundingClientRect(), c = row.querySelector('.cur').getBoundingClientRect(); return [row.scrollWidth > row.clientWidth, c.left >= r.left && c.right <= r.right, row.querySelectorAll('[aria-pressed=true]').length]; });
     ok(seen[0] && seen[1] && seen[2] === 0, `手機上流時那一排可以橫向捲，一出現就捲到標「今」的那一格：${JSON.stringify(seen)}`);
     await phone.ctx.close();
+    // 介於兩者之間的寬度：固定兩行，上面一行到午時、下面一行從未時起（對著第一格，空出標籤那一欄）
+    const mid = await open(browser, { context: { viewport: { width: 900, height: 900 } } });
+    await mid.page.locator('#t-ziwei').click();
+    await mid.page.locator('#decs [data-today]').click();
+    const two = await hourRows(mid.page);
+    const lefts = await mid.page.locator('#hrs [data-hr="0"], #hrs [data-hr="7"]').evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().left)));
+    ok(two.rows.join('｜') === '0,1,2,3,4,5,6｜7,8,9,10,11,12' && two.inside && lefts[0] === lefts[1], `視窗 900 像素寬：流時排兩行，早子時到午時、未時到晚子時，兩行的第一格對齊（${two.rows.join('｜')}）`);
+    await mid.ctx.close();
   }
 
   section('星名、宮干支由上往下一字一行，不靠字型的直排資料');

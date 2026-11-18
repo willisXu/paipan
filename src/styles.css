@@ -226,7 +226,14 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .chips.days { gap: 3px; }
 .chips.mos .rowlabel, .chips.days .rowlabel, .chips.hrs .rowlabel { margin-right: 6px; }
 .chips.mos .chip2, .chips.days .chip2, .chips.hrs .chip2 { position: relative; display: inline-grid; justify-items: center; align-content: center; border-radius: 9px; line-height: 1.2; }
-.chips.mos .chip2, .chips.hrs .chip2 { padding: 3px 7px 4px; }
+.chips.mos .chip2 { padding: 3px 7px 4px; }
+/* 流時十三格：格子的左右留白收窄，寬的版面排得進一行；窄一點就固定排兩行（上面一行到午時、下面一行從未時起），
+   不讓最後一格自己掉到第二行；手機照舊橫向捲。一格的寬度是四個全形字加留白，和字型無關 */
+.chips.hrs .chip2 { padding: 3px 4px 4px; }
+@media (min-width: 701px) and (max-width: 1119px) {
+  .chips.hrs { display: grid; grid-template-columns: auto repeat(7, max-content); justify-content: start; }
+  .chips.hrs [data-hr="7"] { grid-column-start: 2; } /* 第二行從未時起，空出標籤那一欄 */
+}
 .chips.days .chip2 { padding: 3px 1px 4px; min-width: 29px; font-size: 12px; }
 .chips.days .chip2 b { font-size: 12px; margin: 0; }
 .chip2 small { font-size: 10.5px; color: var(--ink-3); }
