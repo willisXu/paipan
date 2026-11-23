@@ -6,6 +6,7 @@
    - 主畫面 App 第一次裝好時提示一次「已可離線使用」；在一般的瀏覽器分頁裡不提示
    - 發布平台的片段（dist/paipan.html）沒有 manifest，不註冊 service worker */
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { ok, eq, section, finish } from '../helpers/harness.js';
@@ -44,6 +45,14 @@ const hermetic = async ctx => { await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, 
     const icons = m.icons.map(i => [i.src, i.sizes, i.purpose, (([w, h]) => `${w}x${h}`)(pngSize(fs.readFileSync(path.join(dir, i.src))))]);
     ok(icons.length === 4 && icons.every(([, sizes, , real]) => sizes === real) && icons.some(i => i[2] === 'maskable') && icons.some(i => i[1] === '512x512' && i[2] === 'any'),
       `四個圖示，標的大小和實際的 PNG 相同，有可裁切（maskable）的 512：${icons.map(i => `${i[0]} ${i[3]} ${i[2]}`).join('、')}`);
+    // sw.js 的版本要跟著檔案內容走：這裡照同樣的規則另外算一次（清單裡每個檔的路徑與內容），和建置填進去的比
+    const sw = fs.readFileSync(path.join(dir, 'sw.js'), 'utf8');
+    const list = JSON.parse(sw.match(/const PRECACHE = (\[[^\]]*\]);/)[1].replace(/'/g, '"')), version = sw.match(/const VERSION = '([0-9a-f]+)';/)?.[1];
+    const files = fs.readdirSync(dir, { recursive: true }).map(f => f.split(path.sep).join('/')).filter(f => /\.(html|js|png|webmanifest)$/.test(f) && f !== 'sw.js').sort();
+    eq(list.map(p => (p === './' ? 'index.html' : p)).sort(), files, '預先快取的清單涵蓋網站裡全部的頁面、程式、圖示與 manifest');
+    const h = crypto.createHash('sha256');
+    for (const p of list) h.update(p).update('\0').update(fs.readFileSync(path.join(dir, p === './' ? 'index.html' : p)));
+    eq(version, h.digest('hex').slice(0, 12), 'sw.js 的版本是這些檔案內容的雜湊：任何一個檔變了，版本就變');
     const res = await page.request.get(server.url + 'manifest.webmanifest');
     ok(res.ok() && (await page.request.get(server.url + head.touch)).ok(), 'manifest 和主畫面圖示都拿得到');
     eq(errors, [], '沒有錯誤');
