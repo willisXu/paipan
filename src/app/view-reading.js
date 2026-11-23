@@ -60,7 +60,7 @@ export function bzRecord(chart, sel) {
   ]));
   const st = bz.strength;
   steps.push(step('③', '旺衰', v.text, v.conf, '', [
-    kv('得令', `${st.dm}${st.dmWx}生${st.month}月（${st.seasonWx}當令），日主是「${st.ling}」→ ${st.deLing ? '得令 ✓' : '失令 ✗'}`),
+    kv('得令', `${st.dm}${st.dmWx}生${st.month}月（${st.seasonWx}當令），日主是「${st.ling}」 → ${st.deLing ? '得令 ✓' : '失令 ✗'}`),
     kv('得地', st.roots.length ? `${st.roots.map(r => `${r.pos}支${r.zhi}藏${r.gan}${r.main ? '（本氣）' : ''}`).join('、')} → 有根 ✓` : '地支藏干裡沒有同五行的根 → 無根 ✗'),
     kv('得勢', `幫身的 ${list(v.helpers)}；剋身的 ${list(v.ke)}；洩身、耗身的 ${list(v.xie)} → ${v.shi}${v.shi === '得勢' ? ' ✓' : v.shi === '勢弱' ? ' ✗' : ''}（${v.shiNote}）`),
     kv('綜合', `${v.why} → ${v.text}。${v.kind === 'unclear' ? '月令和另外兩看互相拉扯，接近中和：偏強還是偏弱要看根的輕重與全局，這裡不下結論。' : ''}`),

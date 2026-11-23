@@ -57,6 +57,11 @@ main > *, .panel > *, .bz-top > *, .two > * { min-width: 0; }
 /* 生辰帖 */
 .birth { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
 .birth-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+/* 「收起／展開」跟在標題後面；收起來時只留這一行和已存的盤（第 13 版） */
+.birth-title { display: flex; align-items: center; gap: 10px; }
+.btn.fold { height: 30px; padding: 0 10px; font-size: 13px; }
+.f-body { display: grid; gap: 14px; }
+.birth.folded .actions { display: none; }
 .eyebrow { font-size: 12px; letter-spacing: .14em; color: var(--ink-2); margin: 0; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 16px; }
 .fld { display: grid; gap: 5px; min-width: 0; align-content: start; }
@@ -90,7 +95,7 @@ main > *, .panel > *, .bz-top > *, .two > * { min-width: 0; }
 .zopts .fld select { font-size: 14px; } /* 選項的字比較多 */
 .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .btn { height: 38px; padding: 0 16px; border-radius: 7px; border: 1px solid var(--rule-2); background: var(--sheet); cursor: pointer; font-size: 14px; }
-.btn:hover { border-color: var(--accent); }
+@media (hover: hover) { .btn:hover { border-color: var(--accent); } } /* 觸控螢幕上點過的按鈕不會留著滑過的樣子 */
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; letter-spacing: .1em; }
 .btn.ghost { border-color: transparent; color: var(--accent); padding: 0 8px; }
 .saved { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; }
@@ -219,7 +224,7 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .track-row { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(66px, 1fr); gap: 6px; overflow-x: auto; padding: 9px 2px 8px; }
 .yun { display: grid; justify-items: center; gap: 1px; padding: 8px 4px 7px; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); cursor: pointer; position: relative; font-variant-numeric: tabular-nums; }
 .yun.edge { border-style: dashed; border-color: var(--ink-3); } /* 交運的那一年：只有交運日的一側屬於這步運 */
-.yun:hover { border-color: var(--accent-line); }
+@media (hover: hover) { .yun:hover { border-color: var(--accent-line); } }
 .yun[aria-pressed=true] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
 .yun .g { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .yun .c { font: 400 24px/1.12 var(--f-display); }
@@ -278,7 +283,7 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .chips.hrs .chip2[aria-pressed=true] .nowmark { color: var(--lay-hr); }
 /* 「看今天」是一個動作，不是選項：虛線框，和旁邊可以按下去的籤分開 */
 .jump { border: 1px dashed var(--accent); background: none; color: var(--accent); border-radius: 999px; padding: 4px 11px; cursor: pointer; font-size: 13px; }
-.jump:hover { background: var(--accent-soft); }
+@media (hover: hover) { .jump:hover { background: var(--accent-soft); } }
 .rowlabel { font-size: 12px; color: var(--ink-2); letter-spacing: .08em; margin-right: 4px; align-self: center; }
 .nowmark { font-size: 11px; line-height: 1.4; padding: 0 4px; margin-right: 5px; border: 1px solid currentColor; border-radius: 999px; }
 .swipe { display: none; font-size: 12px; color: var(--ink-3); margin: 0 0 6px; }
@@ -289,8 +294,8 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 }
 .zw { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); grid-auto-rows: minmax(176px, auto); gap: 1px; background: var(--rule-2); border: 1px solid var(--rule-2); border-radius: 8px; overflow: hidden; min-width: 640px; }
 .cell { background: var(--sheet); padding: 8px 8px 6px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; position: relative; min-width: 0; }
-.cell:hover { background: var(--paper); }
-.cell.sf, .cell.sf:hover { background: var(--accent-soft); }
+@media (hover: hover) { .cell:hover { background: var(--paper); } .cell.sf:hover { background: var(--accent-soft); } }
+.cell.sf { background: var(--accent-soft); }
 .cell.sel { box-shadow: inset 0 0 0 2px var(--accent); }
 .rolemark { margin-left: auto; align-self: center; font-size: 11px; color: var(--accent); letter-spacing: .1em; white-space: nowrap; }
 .stars { display: flex; flex-wrap: wrap; gap: 6px 3px; align-items: flex-start; align-content: flex-start; flex: 1; }
@@ -404,6 +409,24 @@ footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-
 @media screen { .po { display: none !important; } }
 /* 直式；紙張大小不指定，A4、Letter 都可以。邊界留給瀏覽器印頁首頁尾（日期、頁碼） */
 @page { size: portrait; margin: 12mm; }
+/* 觸控螢幕（手機、平板，第 13 版）：手指點的目標至少 44×44（Apple 的建議）；輸入欄位的字至少 16px——iPhone 點進小於 16px 的欄位會整頁放大。
+   紫微盤的宮位不在這裡：整格都可以點，比 44 大得多 */
+@media (pointer: coarse) {
+  .fld input[type=text], .fld input[type=date], .fld input[type=time], .fld input[type=number], .fld select { height: 44px; font-size: 16px; }
+  .zopts .fld select, .copybox { font-size: 16px; }
+  .seg { height: 46px; } /* 外框各 1px，裡面的選項才有 44 */
+  .check { min-height: 44px; }
+  .zopts summary { padding-block: 12px; }
+  .btn, .rd > h2 .btn, .btn.fold { height: 44px; }
+  .chip2, .jump { min-height: 44px; }
+  .chips.days .chip2 { min-width: 44px; }
+  .saved .chip button { min-height: 44px; }
+  .saved .chip button + button { min-width: 44px; }
+}
+/* 橫向捲動的列捲到底時，不把捲動傳給整頁（也不觸發瀏覽器的左右滑動換頁）；iPhone 轉橫向時不自動放大字 */
+.chips, .scroll-x { overscroll-behavior-x: contain; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
 @media print {
   .so, .masthead, .birth > :not(#err), .tabbar, #copyfallback, .toast, .update, .yunbar, .swipe { display: none !important; }
   /* 紙是白的：底色都換成白色。其餘有底色的小東西（四化、標籤、「今」、選到的那一格）照樣要印，

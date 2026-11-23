@@ -7,6 +7,7 @@ import { $, showError } from './dom.js';
 import { SAMPLE } from './places.js';
 import { initNow } from './state.js';
 import { initForm, writeForm } from './form.js';
+import { initFold } from './fold.js';
 import { initBaziView } from './view-bazi.js';
 import { initZiweiView } from './view-ziwei.js';
 import { initTabs, setTab } from './tabs.js';
@@ -32,6 +33,7 @@ function start() {
   // 順序不要調動：下拉選單先有選項，writeForm 才設得了值；「現在」先取好，run 才能用；
   // 其餘是註冊事件，同一個元素上的監聽會照註冊的先後執行
   initForm();
+  initFold();
   initNow();
   initBaziView();
   initZiweiView();
