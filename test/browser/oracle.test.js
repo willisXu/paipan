@@ -2,7 +2,8 @@
    快照測的是「畫面和上次一樣」，這一支測的是「畫面和引擎一樣」：隨機排幾十張盤（含各種流派設定、閏月出生、
    生在立春和正月初一之間），隨機點運限與宮位，每一步把畫面上顯示的東西和引擎用同一組輸入算出來的結果逐項比對——
    紫微：運限五排的籤、十二宮每一格的星曜與亮度、生年與各層四化、流曜、各層宮名、小限、十二神、三方四正的標示、中宮的運限說明；
-   八字：四柱、十一格運、流年、十二個流月、原局關係、運歲與流月的關係。
+   八字：四柱、十一格運、流年、十二個流月、原局關係、運歲與流月的關係；
+   讀盤與星曜解讀（第 12 版）：七段的結論、把握與標籤，喜忌表，十步大運表（選到的那一列、每一列的一句話），星曜解讀每一段的結論。
    比對的一邊是頁面的畫法（src/app），另一邊是這裡照引擎的輸出另外組出來的，兩邊各寫各的。 */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -59,6 +60,12 @@ const readPage = page => page.evaluate(() => {
     liuyue: all(document, '#liuyue .yun').map(b => [b.dataset.lm, all(b, '.g').map(tx).join('|'), all(b, '.c').map(tx).join(''), tx(b.querySelector('.y')), tx(b.querySelector('.a')), tx(b.querySelector('.vh')), !!b.querySelector('.now')]),
     rels: all(document, '#rels .rel').map(r => [tx(r.querySelector('.ty')), tx(r.querySelector('.tx')), tx(r.querySelector('.wh')), tx(r.querySelector('.nt'))]),
     ix: all(document, '#ix .rel').map(r => [tx(r.querySelector('.ty')), tx(r.querySelector('.tx')), tx(r.querySelector('.wh')), tx(r.querySelector('.nt'))]),
+    reading: {
+      heads: all(document, '#rd .rs').map(x => [tx(x.querySelector('.nm')), tx(x.querySelector('.vd')), tx(x.querySelector('.conf')), tx(x.querySelector('h3 > .tag'))]),
+      xiji: all(document, '#rd .rs:nth-of-type(5) tbody tr').map(r => [tx(r.cells[0]), tx(r.cells[1])]),
+      yun: all(document, '#rd .rs:nth-of-type(7) tbody tr').map(r => [r.classList.contains('on'), tx(r.cells[0]), tx(r.cells[4])]),
+      zw: all(document, '#zr .rs').map(x => [tx(x.querySelector('.nm')), tx(x.querySelector('.vd'))]),
+    },
   };
 });
 
@@ -97,6 +104,21 @@ function expected({ bz, zw }, st) {
   const relRow = r => [r.type, r.text, `${[...r.where].join('×')}${r.dist ? ` · ${r.dist}` : ''} ${r.tag}`, r.note];
   const step = [bz.pre, ...bz.dayun].findIndex(s => s.startDate <= TODAY && TODAY < s.endDate) - 1; // 今天走到哪一格；都不是的時候是 -2
   const last = D.years.length - 1;
+  // 讀盤：照引擎的 bzReading、bzJudge 組出各段的結論（頁面的寫法在 src/app/view-reading.js，這裡另外寫）
+  const R = PP.bzReading(bz), xj = R.xiji, names = role => xj.rows.filter(r => r.role === role).map(r => r.wx);
+  const xiSummary = [xj.yong && `用${xj.yong}`, names('喜神').length && `喜${names('喜神').join('、')}`, names('忌神').length && `忌${names('忌神').join('、')}`, names('待觀察').length && `${names('待觀察').join('、')}待觀察`].filter(Boolean).join('；') || '定不出喜忌';
+  const mixed = R.pattern.notes.some(n => n.startsWith('官殺混雜'));
+  const what = `${pre ? '起運前' : `${D.gz}運`}、${N.year} ${N.gz}年${M ? `、${M.gz}月` : ''}`;
+  const zr = PP.zwReading(zw), zstars = zr.ming.empty ? zr.ming.borrowed : zr.ming.stars;
+  const reading = {
+    heads: [['資料與立場', '', '', ''], ['概覽', `日主${bz.dm}${R.overview.dmWx}，月令${bz.pillars[1].zhi}`, '', ''], ['旺衰', R.strength.text, `把握${R.strength.conf}`, ''],
+      ['格局', R.pattern.name + (mixed ? '（官殺混雜）' : ''), `把握${R.pattern.conf}`, R.pattern.tag], ['喜忌', xiSummary, `把握${xj.conf}`, ''], ['關係', '', '', ''], ['運歲', what, '', '']],
+    xiji: xj.rows.map(r => [r.role, `${r.wx}（${r.cls}）`]),
+    yun: bz.dayun.map((d, i) => { const j = PP.bzJudge(R, bz.dm, d.gz), more = j.zhi.cang.map(c => `${c.gan}（${c.god}，${c.role}）`).join('、'); return [!pre && i === dy, d.gz, `${j.text}${more ? `；地支另藏${more}` : ''}`]; }),
+    zw: [['命宮主星', zr.ming.empty ? `空宮，借${zstars.map(x => x.name).join('、') || '對宮'}` : zstars.map(x => x.name).join('、')],
+      ['身宮', zr.body.palace === '命宮' ? '命身同宮' : `在${zr.body.palace}宮`], ['生年四化', zr.sihua.map(h => h.star + h.hua).join('、')], ['命宮的三方四正', zr.around.text.split('：')[0]],
+      ...(L ? [['疊上的運限', [dec !== 'child' ? `大限 ${L.dec.gz}` : '', L.yr ? `流年 ${L.yr.year} ${L.yr.gz}` : ''].filter(Boolean).join('、') || '童限']] : [])],
+  };
   return {
     hidden: [!sp, !months.length, !days.length, !hours.length],
     decs: [['', '本命盤', false], ...spans.map(s => [s.child ? 'child' : String(s.palace), now(s === curSpan, `${span(...s.ages)} 歲${s.child ? '童限' : s.gz}`), s === curSpan])],
@@ -121,6 +143,7 @@ function expected({ bz, zw }, st) {
     liuyue: yue.map(m => [String(m.k), `${m.ganGod}|${m.zhiGod}`, m.gz, m.jie, `${monthDay(m.from)} 起`, `${m.from} ${m.time} 交${m.jie}`, m.from <= TODAY && TODAY < m.to]),
     rels: bz.relations.map(relRow),
     ix: !N ? null : PP.relations(bz.P.concat(flow), true).map(relRow),
+    reading,
   };
 }
 

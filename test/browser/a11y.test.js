@@ -42,6 +42,12 @@ const STATES = [
     async p => await p.locator('#days .chip2').count() === 14 && await p.locator('#zw .cell.sel .ly.day').count() === 1],
   ['流派設定打開，改成中州派、立春年界、閏月算本月', async p => { await p.locator('#zopts summary').click(); await p.locator('#zhua').selectOption('zhongzhou'); await p.locator('#zyear').selectOption('lichun'); await p.locator('#zleap').selectOption('current'); await p.locator('#t-ziwei').click(); },
     async p => await p.locator('#zopts[open]').count() === 1 && (await p.locator('#zopts-now').innerText()) === '目前：中州派四化、生年以立春為界、閏月算本月'],
+  // 讀盤與星曜解讀（第 12 版）：把握低的點、閒神的標籤、收起來的卡、空宮借星的星曜解讀疊上運限
+  ['讀盤：強弱接近、把握低、有閒神', p => born(p, '1999-06-19', '02:56'),
+    async p => (await p.locator('#rd .rs').nth(2).locator('.vd').innerText()) === '強弱接近' && await p.locator('#rd .conf.c-低').count() >= 2 && await p.locator('#rd .role.r-閒神').count() >= 1],
+  ['讀盤收起來', p => p.locator('#rd-toggle').click(), async p => await p.locator('#rd-body').isHidden() && (await p.locator('#rd-toggle').getAttribute('aria-expanded')) === 'false'],
+  ['星曜解讀：命宮空宮、疊到今天', async p => { await born(p, '1980-01-02', '10:00'); await p.locator('#t-ziwei').click(); await p.locator('#decs [data-today]').click(); },
+    async p => await p.locator('#zr .rs').count() === 5 && (await p.locator('#zr .rs').first().locator('.vd').innerText()).startsWith('空宮')],
   ['立春當天交節之前：紫微年界的提醒', async p => { await p.locator('#zopts summary').click(); await p.locator('#zyear').selectOption('lichun'); await born(p, '1984-02-04', '10:00'); },
     async p => (await p.locator('#summary .warn').allInnerTexts()).some(t => t.startsWith('紫微的年界設成立春'))],
 ];

@@ -59,6 +59,10 @@ async function monkey(browser, seed, context) {
     年界: () => setv('#zyear', pick(['lunar', 'lichun'])),
     閏月算法: () => setv('#zleap', pick(['mid', 'current'])),
     複製文字盤: () => tap(page.locator('#copy')),
+    // 讀盤與星曜解讀（第 12 版）：看得到的那一張才點得到
+    看讀盤: () => tap(page.locator('#goto-read')),
+    收合讀盤: async () => { for (const s of ['#rd-toggle', '#zr-toggle']) if (await page.locator(s).isVisible()) return tap(page.locator(s)); },
+    複製讀盤: async () => { for (const s of ['#rd-copy', '#zr-copy']) if (await page.locator(s).isVisible()) return tap(page.locator(s)); },
   };
   const names = Object.keys(actions), log = [];
   let problem = '', charts = 0, wrong = 0;
@@ -78,6 +82,12 @@ async function monkey(browser, seed, context) {
         layers: ['dec', 'yr', 'mo', 'day', 'hr'].map(k => n(`#zw .ly.${k}`)).join('/'),
         picked: ['#yrs', '#mos', '#days', '#hrs'].map(s => n(`${s} .chip2[aria-pressed=true]`)).join('/'),
         rows: ['#yrs', '#mos', '#days', '#hrs'].map(s => ($(s).hidden ? 0 : 1)).join('/'),
+        // 讀盤：七段；星曜解讀：本命四段，疊了大限或童限多一段；第 7 步寫的是選到的那一格運；兩張卡一起收合；分頁列的按鈕跟著分頁
+        reading: [n('#rd .rs'), n('#zr .rs')].join('/'),
+        step7: ($('#rd .rs:nth-of-type(7) .vd') || {}).textContent || '',
+        dyPicked: (b => (!b ? '' : b.dataset.dy === '-1' ? '起運前' : [...b.querySelectorAll('.c')].map(c => c.textContent).join('') + '運'))($('#dayun .yun[aria-pressed=true]')),
+        folded: ['rd', 'zr'].map(id => `${$(`#${id}-body`).hidden}:${$(`#${id}-toggle`).getAttribute('aria-expanded')}:${$(`#${id}-toggle`).textContent}`).join('|'),
+        goto: $('#goto-label').textContent,
         xiao: n('#zw .ly.xiao'), marks: Math.max(...['#decs', '#yrs', '#mos', '#days', '#hrs'].map(s => n(`${s} .nowmark`))), opts: $('#zopts-now').textContent, hours: n('#hrs .chip2'),
       };
     });
@@ -97,6 +107,9 @@ async function monkey(browser, seed, context) {
       || st.rows !== `${dec}/${yr}/${mo}/${day}` || st.hours !== (day ? 13 : 0) || st.xiao > yr || st.marks > 1 || !st.opts.startsWith('目前')) {
       found.push(`紫微的運限疊法不對：宮名 ${st.layers}，選到 ${st.picked}，顯示的排 ${st.rows}，流時 ${st.hours} 格，小限 ${st.xiao}，「今」${st.marks}，設定「${st.opts}」`);
     }
+    if (st.reading !== `7/${dec ? 5 : 4}` || !st.step7.startsWith(st.dyPicked + '、')) found.push(`讀盤的段數或第 7 步不對：段數 ${st.reading}，第 7 步「${st.step7}」，選到的運「${st.dyPicked}」`);
+    if (!['false:true:收起|false:true:收起', 'true:false:展開|true:false:展開'].includes(st.folded)) found.push(`兩張卡的收合狀態不一致：${st.folded}`);
+    if (st.goto !== (st.tabs === 'false,true' ? '看讀盤' : '看星曜解讀')) found.push(`分頁列的按鈕「${st.goto}」和目前的分頁不符`);
     if (found.length) problem = `第 ${k + 1} 步「${name}」之後：${found.join('；')}。最近的操作：${log.slice(-10).join(' → ')}`;
     if (st.err) wrong++; else charts++;
   }
