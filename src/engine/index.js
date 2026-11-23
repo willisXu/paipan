@@ -13,6 +13,8 @@
      bazi.js      八字：四柱、節氣位置、大運流年流月、胎元 → ganzhi、time、relations、shensha、strength
      ziwei.js     紫微斗數起盤、流派設定、十干四化表 → ganzhi、time
      ziwei-yun.js 紫微斗數的運限：大限、童限、小限、流年、流月、流日、流時、流曜 → ganzhi、time
+     reading.js   八字讀盤：七步法的概覽、旺衰、格局、喜忌，運歲對照喜忌 → ganzhi
+     ziwei-reading.js 紫微星曜解讀：命宮主星、身宮、四化落宮、三方四正的吉煞，運限疊上本命 → （不 import 其他模組）
    下面的匯出清單就是引擎的對外介面。各模組另外匯出的 gi、zi、ganWxI、zhiWxI、SAN_HE、lunarMonthDay、lunarMonthName、lunarDayName 只給引擎內部用，不從這裡轉出。 */
 
 /**

@@ -1,3 +1,6 @@
+/* 讀盤（八字分頁最下面）與星曜解讀（紫微分頁最下面）兩張卡。
+   內容由引擎的 bzReading()、bzJudge()、zwReading()、zwReadLayer() 組成；這裡只排成段落與表格，不另外推論。
+   「先自己推論，再對答案」：卡片放在分頁最下面，分頁列有一顆「看讀盤 ↓」直接捲過來。讀盤不進文字盤，命令列也不印。 */
 import { CANG, fmt, tenGod, bzReading, bzJudge, zwReading, zwReadLayer } from '../engine/index.js';
 import { $, esc, copyText } from './dom.js';
 import { S } from './state.js';
@@ -6,17 +9,24 @@ import { warningsOf } from './summary.js';
 import { yunSel } from './view-bazi.js';
 import { layers } from './view-ziwei.js';
 
+// 十步大運表裡，角色的記號：✓ 喜用、✗ 忌、△ 待觀察、－ 閒神
 const MARK = { 用神: '✓', 喜神: '✓', 忌神: '✗', 待觀察: '△', 閒神: '－' };
+// 關係照採信標籤排：共識在前、存疑在後
 const TAG_ORDER = ['共識', '參考', '存疑'];
+// 這兩欄的字長，允許換行（其餘欄不換行，手機上整張表橫向捲）
 const WRAP = ['理由', '一句話'];
+// 這幾種關係的說明文字裡沒有寫出關係的名字，另外補在前面
 const UNNAMED = ['天剋地沖', '伏吟', '歲運並臨'];
 const list = (a, none = '無') => a.length ? a.join('、') : none;
 const kv = (k, v, sub = false) => ({ k, v, sub });
+// 一段：編號、名稱、結論、把握、採信標籤、依據（一行一行）、表（可以沒有）、段尾的說明
 const step = (no, name, verdict, conf, tag, lines, table = null, after = []) => ({ no, name, verdict, conf, tag, lines: lines.filter(Boolean), table, after: after.filter(Boolean) });
+// 單一個字的角色：借 bzJudge 查（天干配一個子、地支配一個甲，只取需要的那一半），例如「壬＝偏財，忌神」
 const roleNote = (R, dm, c, isZhi) => {
   const j = bzJudge(R, dm, isZhi ? `甲${c}` : `${c}子`), x = isZhi ? j.zhi : j.gan;
   return `${c}＝${x.god}，${x.role}`;
 };
+// ⑥ ⑦ 的一行關係；天干五合、相沖與地支六合、六沖這四種兩個字的關係，另外寫出兩個字各是喜是忌
 function relLine(r, P, R, dm) {
   const two = /^(天干五合|天干相沖|地支六合|地支六沖)$/.test(r.type) && r.where.length === 2;
   const isZhi = r.type.startsWith('地支');
@@ -26,6 +36,11 @@ function relLine(r, P, R, dm) {
 const byTag = rels => [...rels].sort((a, b) => TAG_ORDER.indexOf(a.tag) - TAG_ORDER.indexOf(b.tag));
 const hidden = j => j.zhi.cang.length ? `另藏${j.zhi.cang.map(c => `${c.gan}（${c.god}，${c.role}）`).join('、')}` : '';
 const judgeLine = (head, j) => kv(head, `天干${j.gan.c}＝${j.gan.god}（${j.gan.wx}，${j.gan.role}）；地支${j.zhi.c}＝本氣${j.zhi.god}（${j.zhi.wx}，${j.zhi.role}）${hidden(j) ? `，${hidden(j)}` : ''} → ${j.text}`);
+/**
+ * 八字讀盤紀錄：七段，每段是結論、把握、標籤與依據。不碰 DOM：畫面（stepHtml）與「複製讀盤紀錄」（recordText）用的都是這一份。
+ * @param {object} chart 共用狀態 S，或同樣形狀的 { inp, rt, bz, zw }
+ * @param {{dy: number, ln: number, lm: number|null}} sel 八字分頁選到的運、流年、流月：⑦ 跟著它們換
+ */
 export function bzRecord(chart, sel) {
   const { inp, rt, bz } = chart, dm = bz.dm, R = bzReading(bz), { overview: o, strength: v, pattern: p, xiji: x } = R;
   const warns = warningsOf(chart).length;
@@ -114,6 +129,11 @@ export function bzRecord(chart, sel) {
   ]));
   return { title: `讀盤紀錄\u3000${nameOf(inp)}\u3000${bz.gz.join(' ')}`, steps };
 }
+/**
+ * 紫微星曜解讀：本命四段；疊了大限或童限時多一段運限。和讀盤一樣不碰 DOM，畫面與複製共用。
+ * @param {object} chart 共用狀態 S
+ * @param {object|null} L view-ziwei.js 的 layers()：目前疊上的運限，本命盤是 null
+ */
 export function zwNotes(chart, L) {
   const { inp, zw } = chart, R = zwReading(zw), c = zw.chart;
   const star = s => [
@@ -155,6 +175,7 @@ export function zwNotes(chart, L) {
   }
   return { title: `星曜解讀\u3000${nameOf(inp)}\u3000命宮${c.palaces.find(p => p.name === '命宮').earthlyBranch}`, steps };
 }
+// 讀盤紀錄、星曜解讀排成純文字：標題列、依據一行一行、表格一列一行（選到的那一列標 ▶），最後是頁尾的說明
 export function recordText(rec, foot) {
   const out = [rec.title];
   for (const s of rec.steps) {
@@ -169,11 +190,14 @@ export function recordText(rec, foot) {
   out.push('', foot);
   return out.join('\n');
 }
+// 複製出來的文字最後一段：說明這是什麼、守什麼分寸（畫面上同樣的話寫在卡片的頭尾）
 export const BZ_FOOT = '照《八字命理二十講》第 18 講的七步法由程式排出，說的是傾向，不是判決。三看怎麼綜合、三個角度怎麼合成喜忌，是工具自己訂的規則；請先自己推論，再拿來對答案。不作健康判斷，不論斷家人的吉凶。';
 export const ZW_FOOT = '坊間通行說法的整理，全部列為參考，不是哪一派的定論。說的是傾向，不是判決；不作健康判斷，不論斷家人的吉凶。';
+// 畫面：文字裡的［共識］［參考］［存疑］換成採信標籤；把握程度畫成三個點加上文字（不只靠顏色）
 const rich = s => esc(s).replace(/［(共識|參考|存疑)］/g, ' <span class="tag t-$1">$1</span> ');
 const confHtml = c => c ? `<span class="conf c-${c}"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>把握${c}</span>` : '';
 const lineHtml = l => typeof l === 'string' ? `<li>${rich(l)}</li>` : `<li${l.sub ? ' class="dep"' : ''}><b class="k">${rich(l.k)}</b> <span>${rich(l.v)}</span></li>`;
+// 一段的 HTML。表格包在可以橫向捲的區塊裡
 function stepHtml(s) {
   const t = s.table;
   const cell = (v, head) => head === '角色' ? `<span class="role r-${v}">${v}</span>` : rich(v);
@@ -184,6 +208,7 @@ function stepHtml(s) {
       ${s.after.map(l => `<p class="note">${rich(l)}</p>`).join('')}
     </section>`;
 }
+// 收合狀態存在瀏覽器（兩張卡共用一個）。瀏覽器不讓存時照樣能收，只是下次不記得
 const KEY = 'paipan.reading';
 const isOpen = () => {
   try {
@@ -201,6 +226,7 @@ function applyOpen(open) {
     b.textContent = open ? '收起' : '展開';
   }
 }
+// 表格比畫面寬、真的能捲時，才讓捲動區塊可以用鍵盤聚焦、給讀屏一個名稱；排得下的時候不加，免得多出沒用的停駐點
 function markScroll() {
   document.querySelectorAll('.rd .scroll-x').forEach(el => {
     if (el.scrollWidth > el.clientWidth + 1) {
@@ -210,6 +236,7 @@ function markScroll() {
     } else for (const a of ['tabindex', 'role', 'aria-label']) el.removeAttribute(a);
   });
 }
+// 目前的盤和選到的運限
 const bzRec = () => bzRecord(S, { dy: S.dy, ln: S.ln, lm: S.lm });
 const zwRec = () => zwNotes(S, layers());
 export function renderBzReading() {
@@ -224,6 +251,7 @@ export function renderZwReading() {
     markScroll();
   }
 }
+// 註冊事件：收合、看讀盤（捲到目前分頁的那張卡並把焦點放在標題）、兩顆複製；八字的運、年、月與紫微的運限列一點就重寫
 export function initReadingView() {
   applyOpen(isOpen());
   for (const id of ['rd', 'zr']) {

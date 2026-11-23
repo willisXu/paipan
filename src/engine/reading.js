@@ -1,8 +1,17 @@
+/* 八字讀盤：照《八字命理二十講》第 18 講七步法裡要推論的幾步，把旺衰、格局、喜忌接成結論，每一條附依據與把握程度。
+   教材給的是方法與兩張盤的示範（範例盤身弱有根、對照盤身強），沒有把「三看怎麼合成一句話」「三個角度怎麼合成喜忌」寫成公式；
+   這裡的規則凡是教材沒寫的，註解都標明「工具訂的」，頁面與 README 也寫明。不計分，每一條結論都追得到是哪一看、哪個角度、哪一個字說的。
+   判不準就說判不準：強弱接近不下結論、喜忌有贊成也有反對的列待觀察、可能是從格或專旺的只提示。
+   測試：test/engine/reading.test.js 照同一套文字規則另寫了一份判定表，拿隨機的盤和這裡逐張比對；規則改了那份要一起改、分布要重算。 */
 import { WX, CANG, yinyang, tenGod, changSheng, gi, zi, ganWxI } from './ganzhi.js';
 
+// 十神的五個類別，序號是「從日主的五行往下數幾步」：0 比劫（同我）、1 食傷（我生）、2 財（我剋）、3 官殺（剋我）、4 印（生我）
 const CLS = ['比劫', '食傷', '財', '官殺', '印'];
 const clsOf = (dm, g) => (ganWxI(g) - ganWxI(dm) + 5) % 5;
+// 地支藏干的三層，依 CANG 表的順序
 const LAYER = ['本氣', '中氣', '餘氣'];
+/* ② 概覽：日主、月令，以及五個類別各自透在哪幾干、藏在哪幾支。
+   missing 是天干和藏干都沒有的類別（比劫一定有，日主自己就是）。只陳述，不下結論：「沒有不等於要補」寫在頁面上 */
 function overviewOf(bz) {
   const { dm, pillars } = bz, d = ganWxI(dm);
   const classes = CLS.map((name, k) => ({ k, name, wx: WX[(d + k) % 5], tou: [], cang: [] }));
@@ -21,6 +30,17 @@ function overviewOf(bz) {
     missing: classes.filter(c => c.k !== 0 && !c.tou.length && !c.cang.length).map(c => c.wx)
   };
 }
+/* ③ 旺衰（第 10 講）：三看——得令（月令的旺相休囚死）、得地（藏干通根）、得勢（天干幫扶）。不計分。
+   教材只給三看與「月令影響最大」，三看怎麼合成一句話是工具訂的規則：
+   - 得勢分四級，只看年、月、時三個天干：幫身的（印、比劫）兩個以上＝佔多數；只有一個幫身、沒有官殺＝一幫無剋；
+     一個幫身一個官殺＝持平；其餘（沒有幫身，或一個幫身對兩個官殺）＝勢弱。食傷、財是洩、耗，不計入這兩邊。
+   - 月令分三種：旺；相（也算得令）；休、囚、死（失令）。有沒有根用來修飾結論。
+   - 結論與把握：月令旺而得勢＝身強（高）；月令旺、持平＝身強（中）；月令旺但天干兩個以上官殺、沒有幫身＝強弱接近（低）；
+     月令旺其餘＝偏強（中）。月令相：有根而佔多數＝身強（高）、有根而一幫無剋＝身強（中）、有根而持平或無根而佔多數＝偏強（中），
+     其餘＝強弱接近（低）。失令：勢弱＝身弱（高）、持平＝偏弱有根或身弱無根（中）、一幫無剋＝偏弱（中）、
+     佔多數時無根＝偏弱（中）、三干都幫身又有本氣根＝偏強（中），其餘＝強弱接近（低）。
+   - 「強弱接近」是月令和另外兩看互相拉扯的盤：不下結論，喜忌那一步的扶抑也不表態。
+   - 特殊格局只提示、不改結論：失令、無根、天干沒有印比 → 可能是從格；月令旺、三干全是印比、地支三處以上有根 → 可能是專旺格 */
 function verdictOf(bz) {
   const st = bz.strength, dm = bz.dm;
   const others = bz.pillars.filter((p, i) => i !== 2), at = p => `${p.pos}干${p.gan}`;
@@ -63,6 +83,7 @@ function verdictOf(bz) {
   }
   return { ling: st.ling, deLing: st.deLing, rooted, mainRoot, shi, shiNote, helpers, ke, xie, text, kind, conf, why, special };
 }
+// 八正格（第 13 講）：[順用或逆用, 一句話, 這一格喜的類別]。偏印格不在表裡：看盤上有沒有食神，在 patternOf 裡另外定
 const GE = {
   正官: ['順用', '喜財生官、印護官', [2, 4]],
   七殺: ['逆用', '喜食神制殺，或印化殺', [1, 4]],
@@ -72,6 +93,14 @@ const GE = {
   食神: ['順用', '喜食神生財，忌偏印奪食', [2]],
   傷官: ['逆用', '喜印制傷官，或傷官生財', [4, 2]]
 };
+/* ④ 格局（第 13 講）：先看祿刃與月令比劫，再照取格三步取八正格。
+   - 月令是日主的臨官 → 建祿格；陽干生在帝旺 → 月刃格；月令本氣是比劫 → 「月令是比劫」。這三種教材列為參考，把握一律低。
+     祿、刃照十二長生排（戊己土隨火，頁面另外註明有人改照月令本氣取格）——這是工具訂的。
+   - 取格三步：月令本氣透干 → 取本氣（第 1 步）；本氣不透而中氣、餘氣有透 → 取透出的（第 2 步，兩個都透時取中氣並註明）；
+     都不透 → 以本氣論（第 3 步）。候選的字是比劫就跳過（工具訂的）。
+   - 把握：本氣透干又不是官殺混雜為高，其餘八正格為中。
+   - 偏印格：盤上有食神才逆用（喜財制梟），沒有就照印格順用（喜官殺生印）——工具訂的。
+   - 七殺格、傷官格另外看盤上有沒有能走的路（制或化、印或財），寫在 path */
 function patternOf(bz, ov) {
   const dm = bz.dm, m = bz.pillars[1].zhi, C = CANG[m];
   const stems = bz.pillars.filter((p, i) => i !== 2);
@@ -125,8 +154,11 @@ function patternOf(bz, ov) {
     tag: ''
   };
 }
+// 五行序號上的生剋：a 生 b、a 剋 b
 const SHENG = (a, b) => (a + 1) % 5 === b;
 const KE = (a, b) => (a + 2) % 5 === b;
+/* 調候只用通則（第 14 講的速查）：亥子丑月與寅月喜火暖局，巳午未月與申酉戌月喜水潤燥，卯辰兩月不表態。
+   回傳 [喜的五行序號, 一句說明, 理由短語]；沒有通則可用時是 null。《窮通寶鑑》逐月逐干的表沒有做 */
 const TIAOHOU = z => {
   const k = zi(z);
   if (k === 11 || k <= 1) return [1, `${z}月是冬天，寒：喜火暖局`, '暖局'];
@@ -135,6 +167,7 @@ const TIAOHOU = z => {
   if (k >= 8 && k <= 10) return [4, `${z}月是秋天，漸燥${k === 10 ? '（戌月尤其燥）' : ''}：喜水滋潤`, '潤燥'];
   return null;
 };
+// 喜忌表「理由」那一欄的短語：扶抑（身弱、身強各一組）與格局，依類別序號
 const FUYI_WHY = { weak: ['幫身', '洩身', '耗身', '剋身', '生身'], strong: ['再幫身就過旺', '洩身', '耗身', '制身', '再生身就過旺'] };
 const GE_WHY = {
   正官格: { 2: '生官', 4: '護官' },
@@ -149,6 +182,14 @@ const GE_WHY = {
   建祿格: { 2: '建祿喜財', 3: '建祿喜官殺', 1: '建祿喜食傷' },
   月令是比劫: { 2: '月令比劫喜財', 1: '月令比劫喜食傷' }
 };
+/* ⑤ 喜忌（第 14 講）：扶抑、格局、調候三個角度，各自對五行贊成或反對；用神看需要，不看缺不缺。
+   合成的規則是工具訂的，不計分：
+   - 只有贊成的是喜神；有贊成也有反對的是待觀察（標參考）；只有反對的是忌神；三個角度都沒提的是閒神。
+   - 喜神裡，得到兩個角度以上支持、而且唯一最多的，才升為用神；平手或只有一個角度支持，就只列喜神、不指定用神。
+   - 食傷和官殺相剋，兩類都被看好時不並用：票少的改列待觀察；票數相同看天干透出幾個，再相同兩個都留著。
+   - 把握：格局、調候都和扶抑同向（各有一個看好的類別最後是喜用），而且旺衰把握高 → 高；
+     強弱接近、有特殊格局的提示、或沒有一個角度和扶抑同向 → 低；其餘 → 中。
+   - 忌神、待觀察另外列出牽連：生了哪個忌神、剋不剋用神、冬天的水與夏天的火加重寒燥 */
 function xiJi(bz, ov, v, pat) {
   const d = ganWxI(bz.dm), month = bz.pillars[1].zhi;
   const rows = CLS.map((cls, k) => ({ wx: WX[(d + k) % 5], k, cls, role: '閒神', plus: [], minus: [], pro: [], con: [], tag: '共識' }));
@@ -219,10 +260,23 @@ function xiJi(bz, ov, v, pat) {
   rows.sort((a, b) => ORDER.indexOf(a.role) - ORDER.indexOf(b.role) || b.plus.length - a.plus.length || a.k - b.k);
   return { angles, rows, yong, conf, notes };
 }
+/**
+ * 八字讀盤（七步法裡要推論的 ②③④⑤）：概覽、旺衰、格局、喜忌。只算結構，不寫性情、事業、感情。
+ * @param {import('./bazi.js').BaziChart} bz bazi() 的結果
+ * @returns {{overview: object, strength: object, pattern: object, xiji: {angles: object[], rows: object[], yong: string, conf: string, notes: string[]}}}
+ */
 export function bzReading(bz) {
   const overview = overviewOf(bz), strength = verdictOf(bz), pattern = patternOf(bz, overview);
   return { overview, strength, pattern, xiji: xiJi(bz, overview, strength, pattern) };
 }
+/**
+ * ⑦ 運歲（第 15、16 講）：拿喜忌去對一組干支（大運、流年、流月）。天干看一個字；地支看本氣，另藏的喜用另外列出。
+ * 只列依據，不寫會發生什麼事——推論要說出時間、領域、依據、把握，領域要人自己判斷。
+ * @param {ReturnType<typeof bzReading>} R bzReading() 的結果
+ * @param {string} dm 日主
+ * @param {string} gz 兩個字的干支，例如「丙午」
+ * @returns {{gan: object, zhi: object, text: string}} text 是一句話：用神到位、干支都是喜用、上喜下忌、上忌下喜、干支都是忌神，或照實寫天干、地支各是什麼
+ */
 export function bzJudge(R, dm, gz) {
   const roleOf = g => R.xiji.rows.find(r => r.k === clsOf(dm, g)).role;
   const one = g => ({ c: g, god: tenGod(dm, g), wx: WX[ganWxI(g)], role: roleOf(g) });
