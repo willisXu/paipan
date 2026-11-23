@@ -1,7 +1,7 @@
 /* 文字盤：把目前的盤排成純文字，以及「複製文字盤」按鈕。
    textChart() 只讀共用狀態 S、不碰 DOM：頁面的按鈕和命令列（scripts/paipan.js）用的是同一個函式。 */
 import { fmt, SHICHEN, yinyang } from '../engine/index.js';
-import { $, toast } from './dom.js';
+import { $, copyText } from './dom.js';
 import { S } from './state.js';
 import { dur, fmtOff, nameOf, placeLabel, usedNotes, zwOptLabels } from './format.js';
 import { warningsOf } from './summary.js';
@@ -82,14 +82,5 @@ export function textChart({ atDate = '' } = {}) {
 }
 
 export function initTextChart() {
-  $('#copy').addEventListener('click', () => {
-    if (!S.bz) return;
-    const text = textChart(), box = $('#copyfallback');
-    const fallback = () => { // 有些檢視不允許寫剪貼簿：改成選取文字，讓使用者自己按複製
-      box.hidden = false;
-      box.innerHTML = '<p class="note" style="margin:0 0 6px">這個檢視不允許直接寫入剪貼簿。文字已選取，請按 Ctrl/⌘ + C 複製。</p><textarea class="copybox" id="copytext" readonly aria-label="文字盤"></textarea>';
-      const ta = $('#copytext'); ta.value = text; ta.focus(); ta.select();
-    };
-    try { navigator.clipboard.writeText(text).then(() => { box.hidden = true; toast('文字盤已複製'); }, fallback); } catch (e) { fallback(); }
-  });
+  $('#copy').addEventListener('click', () => { if (S.bz) copyText(textChart(), '文字盤已複製', '文字盤'); });
 }

@@ -134,6 +134,7 @@
       <button class="tab" role="tab" id="t-ziwei" aria-controls="p-ziwei" aria-selected="false">紫微斗數</button>
     </div>
     <div class="tabtools">
+      <button class="btn" id="goto-read" type="button"><span id="goto-label">看讀盤</span><span aria-hidden="true"> ↓</span></button>
       <button class="btn" id="copy" type="button">複製文字盤</button>
       <!--@SITE-->
       <button class="btn" id="print" type="button">列印／存 PDF</button>
@@ -152,9 +153,9 @@
       </div>
       <div class="two">
         <div class="card">
-          <h2>旺衰三看 <small>只列觀察，不下結論</small></h2>
+          <h2>旺衰三看 <small>這裡只列觀察</small></h2>
           <ul class="three" id="strength"></ul>
-          <p class="note">身強身弱請先自己推論，再對答案。月令看旺相休囚死（辰戌丑未月以土當令），通根看藏干。</p>
+          <p class="note">身強身弱請先自己推論，再到下面的「讀盤」對答案。月令看旺相休囚死（辰戌丑未月以土當令），通根看藏干。</p>
         </div>
         <div class="card">
           <h2>五行字數 <small>天干地支共 8 字</small></h2>
@@ -189,6 +190,15 @@
       <div class="scroll-x"><table class="ss" id="shensha"></table></div>
       <p class="note" id="other"></p>
     </div>
+    <div class="card rd" id="rd">
+      <h2 tabindex="-1">讀盤 <small>照教材第 18 講的七步法；每條結論附依據與把握程度</small>
+        <span class="rd-tools so"><button class="btn" id="rd-copy" type="button">複製讀盤紀錄</button><button class="btn" id="rd-toggle" type="button" aria-expanded="true" aria-controls="rd-body">收起</button></span></h2>
+      <div id="rd-body">
+        <p class="note lead"><span class="so">還在學的話，先自己用七步法推一次，再拿這裡對答案。</span>這份紀錄是程式照規則排的，說的是傾向，不是判決。</p>
+        <div id="rd-steps"></div>
+        <p class="note">教材給的是方法與兩張盤的示範（範例盤身弱有根、對照盤身強）。三看怎麼綜合成一句話、三個角度怎麼合成喜忌，教材沒有公式，是工具自己訂的規則，不計分：月令為重，天干看幫身與剋身哪邊多，有沒有根用來修飾；月令和另外兩看互相拉扯的盤寫「強弱接近」，不下結論。把握程度的定義照第 18 講（三個一致是高，兩個支持是中，只有一個依據、或依據是參考級的是低）；每一步怎麼套，也是工具自己訂的。從格、專旺只提示可能，化氣格不偵測。不作健康判斷，不論斷家人的吉凶。</p>
+      </div>
+    </div>
   </section>
 
   <section class="panel" id="p-ziwei" role="tabpanel" aria-labelledby="t-ziwei" hidden>
@@ -218,13 +228,23 @@
       </div>
     </div>
     <div class="card" id="pdetail"></div>
+    <div class="card rd" id="zr">
+      <h2 tabindex="-1">星曜解讀 <span class="tag t-參考">參考</span> <small>坊間通行說法的整理，不是哪一派的定論</small>
+        <span class="rd-tools so"><button class="btn" id="zr-copy" type="button">複製星曜解讀</button><button class="btn" id="zr-toggle" type="button" aria-expanded="true" aria-controls="zr-body">收起</button></span></h2>
+      <div id="zr-body">
+        <p class="note lead">挑命盤上最常看的幾處：命宮主星、身宮、生年四化、命宮的三方四正；疊了大限、流年，再多一段。每顆星都分兩面寫，說的是傾向，不是判決。</p>
+        <div id="zr-steps"></div>
+        <p class="note">這個專案沒有紫微斗數的教材，這裡的文字沒有答案可以對，是照坊間通行的說法整理的，各派的講法不盡相同。只取盤上有的星去對文字表，不計分、不推導格局；流派設定換了四化版本，四化那一段會跟著換。不作健康判斷，不論斷家人的吉凶。</p>
+      </div>
+    </div>
   </section>
 
   <footer class="colophon">
     <div class="legend2"><span>採信標籤</span><span class="tag t-共識">共識</span><span>多數流派一致</span><span class="tag t-參考">參考</span><span>可用，要搭配全局</span><span class="tag t-存疑">存疑</span><span>僅作古籍閱讀，不主張使用。「不採」的項目不列出。</span></div>
     <p>節氣、四柱與大運起運由 lunar-javascript 1.7.7 計算；紫微斗數的本命盤由 iztro 2.6.3 安星（通行版星曜與亮度）。四化版本、年界、閏月算法可以在「紫微斗數流派設定」裡換，預設是坊間通行的排法：四化戊干取貪陰右機、庚干取陽武陰同、壬干取梁紫左武，正月初一換年，閏月以十五日為界。十神、藏干、十二長生、納音、空亡、合沖刑害、神煞用本頁內建表格計算。</p>
     <p>紫微的運限由本頁推算：大限以所在宮的宮干支起四化；第一個大限之前是童限，一歲命宮、二歲財帛、三歲疾厄、四歲夫妻、五歲福德；小限男順女逆、一歲一宮，寅午戌年生人從辰宮起、申子辰從戌、巳酉丑從未、亥卯未從丑；流年以流年地支所在的宮為命宮；流月用流年斗君，從流年命宮起正月逆數到生月、再順數到生時，就是正月，之後每月順行一宮；流日從流月命宮起初一，每日順行一宮；流時從流日命宮起子時，每個時辰順行一宮，時干照日干用五鼠遁。流曜是祿、羊、陀、魁、鉞、昌、曲、馬、鸞、喜十顆，依各層運限的干支安星，流年另有年解。流年以正月初一換年，流月、流日照農曆的月和日。流時照鐘錶的一天排十三格：早子時（0 到 1 點）、丑時到亥時、晚子時（23 到 24 點）；晚子時的命宮和早子時相同，時干用次日的子時。採 23 點換日的，這一個小時請看次日的早子時。</p>
-    <p>年柱、月柱依出生瞬間對照節氣時刻（UTC+8）判斷，日柱、時柱依排盤用時。紫微斗數的生年預設以正月初一分界，年干可能和八字年柱不同。天乙貴人採「甲戊庚牛羊」口訣，羊刃只列陽干。起運之前還沒有大運，只列流年，不另排小運。八字的流月是節氣月：流年從立春起，十二個月各從交節的那一刻起算，月干照流年的年干用五虎遁。本頁只排盤，不解盤。</p>
+    <p>年柱、月柱依出生瞬間對照節氣時刻（UTC+8）判斷，日柱、時柱依排盤用時。紫微斗數的生年預設以正月初一分界，年干可能和八字年柱不同。天乙貴人採「甲戊庚牛羊」口訣，羊刃只列陽干。起運之前還沒有大運，只列流年，不另排小運。八字的流月是節氣月：流年從立春起，十二個月各從交節的那一刻起算，月干照流年的年干用五虎遁。</p>
+    <p>八字的「讀盤」照《八字命理二十講》第 18 講的七步法，由程式把旺衰、格局、喜忌接成結論，每一條附依據與把握程度；紫微斗數的「星曜解讀」是坊間通行說法的整理，全部列為參考。兩者說的都是傾向，不是判決：不作健康判斷，不論斷家人的吉凶，也不替人做決定。</p>
     <!--@SITE-->
     <p>列印：「列印／存 PDF」印出目前看的那個分頁，和瀏覽器自己的列印相同；「八字、紫微一起印」兩個都印，紫微斗數從新的一頁開始。印出來的是畫面上選到的樣子：八字選到的運、年、月，紫微疊上的運限和選到的宮位；表單和操作用的按鈕不印。要存成 PDF 檔，在列印對話框把印表機（目的地）選成「另存為 PDF」。版面照 A4 直式設計，一般是八字兩頁、紫微本命盤一頁；字縮成畫面上的四分之三，想大一點可以在列印對話框調整縮放。</p>
     <!--@/SITE-->

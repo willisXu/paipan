@@ -12,6 +12,18 @@ export function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 1800);
 }
 
+// 複製到剪貼簿，成功時顯示 done。有些檢視（例如發布平台的內嵌框）不允許寫剪貼簿：改成把文字放進備用文字框並選取，
+// 讓使用者自己按複製。label 是文字框的讀屏名稱。文字盤、讀盤紀錄、星曜解讀三顆複製按鈕共用
+export function copyText(text, done, label) {
+  const box = $('#copyfallback');
+  const fallback = () => {
+    box.hidden = false;
+    box.innerHTML = `<p class="note" style="margin:0 0 6px">這個檢視不允許直接寫入剪貼簿。文字已選取，請按 Ctrl/⌘ + C 複製。</p><textarea class="copybox" id="copytext" readonly aria-label="${esc(label)}"></textarea>`;
+    const ta = $('#copytext'); ta.value = text; ta.focus(); ta.select();
+  };
+  try { navigator.clipboard.writeText(text).then(() => { box.hidden = true; toast(done); }, fallback); } catch (e) { fallback(); }
+}
+
 // 橫向捲動的列：把選到的項目捲到中間；沒有選到的（八字的流月、紫微的流時可以不選），捲到標了「今」的那一顆
 // （八字的籤裡是 .now，紫微的籤本身帶 .cur）。只改該列的 scrollLeft，不捲動頁面
 export function reveal(rowSel) {

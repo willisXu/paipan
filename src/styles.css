@@ -180,6 +180,39 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 .rel .nt { grid-column: 2 / 4; font-size: 12.5px; color: var(--ink-3); }
 .empty { color: var(--ink-3); font-size: 14px; margin: 0; }
 
+/* 讀盤（八字）與星曜解讀（紫微）：一段一段往下排；每段的標題列是編號、名稱、結論、把握程度、採信標籤 */
+.rd > h2 .rd-tools { margin-left: auto; display: inline-flex; gap: 6px; }
+.rd > h2 .btn { height: 32px; padding: 0 12px; font: 400 13px var(--f-body); letter-spacing: 0; }
+.rd .lead { margin: 0 0 6px; font-size: 13.5px; color: var(--ink-2); }
+.rs { padding: 12px 0 4px; border-top: 1px solid var(--rule); }
+.rs h3 { margin: 0 0 6px; font: 700 16px/1.5 var(--f-display); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.rs .no { color: var(--accent); font-size: 18px; line-height: 1; }
+.rs .vd { font: 700 15px/1.5 var(--f-display); padding: 0 7px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.rs .ev { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 14px; }
+.rs .ev li { min-width: 0; }
+.rs .ev .k { font-weight: 700; margin-right: .4em; }
+.rs .ev .k .tag { font-weight: 400; }
+.rs .ev li.dep { padding-left: 1.2em; color: var(--ink-2); }
+.rs .ev li.dep .k { font-weight: 500; }
+/* 把握程度：三個點，實心的個數就是高、中、低；和採信標籤（方塊）分開，不只靠顏色 */
+.conf { display: inline-flex; align-items: center; gap: 5px; font: 400 12px/1 var(--f-body); color: var(--ink-2); white-space: nowrap; }
+.conf .dots { display: inline-flex; gap: 2px; }
+.conf .dots i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-2); }
+.conf.c-高 .dots i, .conf.c-中 .dots i:nth-child(-n+2), .conf.c-低 .dots i:first-child { background: var(--ink-2); }
+.rt { margin-top: 6px; min-width: 460px; }
+.rt th, .rt td { white-space: nowrap; }
+.rt td.w { white-space: normal; min-width: 11em; }
+.rt caption { text-align: left; font-size: 12.5px; color: var(--ink-2); padding: 4px 0 6px; }
+.rt td { font-size: 13.5px; }
+.rt tr.on td { background: var(--accent-soft); }
+.rt tr.on td:first-child { box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
+.role { display: inline-block; font: 400 12.5px/1 var(--f-body); padding: 4px 7px; border-radius: 4px; border: 1px solid transparent; white-space: nowrap; }
+.r-用神 { background: var(--accent); color: var(--accent-ink); }
+.r-喜神 { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+.r-待觀察 { border: 1px dashed var(--ink-2); color: var(--ink-2); }
+.r-忌神 { border-color: var(--ink-2); color: var(--ink); }
+.r-閒神 { color: var(--ink-3); padding-left: 0; }
+
 /* 大運流年 */
 .yunhead { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13.5px; color: var(--ink-2); margin: -4px 0 12px; }
 .yunhead b { color: var(--ink); font-weight: 500; }
@@ -436,6 +469,13 @@ footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-
   .sfsz .s .mi { margin-left: 1em; }
   .sfsz .s .yl { display: inline-flex; margin: 0 0 0 1em; vertical-align: middle; }
   .fly { margin-top: 9px; padding-top: 8px; }
+  /* 讀盤、星曜解讀：各自從新的一頁開始，前面盤面怎麼分頁不受影響；收起來的那一張整張不印。一段不要被切成兩頁；表格跟著紙寬 */
+  .rd { break-before: page; }
+  .rd.closed { display: none !important; }
+  .rs { padding: 8px 0 3px; break-inside: avoid; }
+  .rs h3 { margin-bottom: 4px; }
+  .rs .ev { gap: 2px; }
+  .rt { min-width: 0; }
   /* 頁尾：算法說明很長，紙上只留標籤的意思和 print.js 填的那一行 */
   footer.colophon { margin-top: 10px; padding-top: 9px; gap: 3px; line-height: 1.45; }
   footer.colophon p:not(.po) { display: none; }

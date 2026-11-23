@@ -10,7 +10,7 @@ export function initPrint() {
   /* 紙上頁尾：這張紙是從哪裡、以哪一天為「今天」印的。頁面的「今天」在開頁時取一次，「今」的標記照的就是這一天。
      網址只寫主機和路徑；不是從網站開的（例如存在電腦裡的檔案）就不寫 */
   const here = /^https?:$/.test(location.protocol) ? `${location.host}${location.pathname}` : '';
-  $('#printed').textContent = `八字紫微排盤${here ? `（${here}）` : ''}。以 ${today} 為今天：標「今」的是這一天所在的運、年、月、日。只排盤，不解盤；算法與流派的說明在網頁下方。`;
+  $('#printed').textContent = `八字紫微排盤${here ? `（${here}）` : ''}。以 ${today} 為今天：標「今」的是這一天所在的運、年、月、日。讀盤與星曜解讀是程式照規則排的，說的是傾向，不是判決；算法與流派的說明在網頁下方。`;
 
   // 印完把「兩個都印」的記號拿掉，之後用瀏覽器自己的列印才會回到只印目前的分頁
   window.addEventListener('afterprint', () => document.body.classList.remove('print-both'));

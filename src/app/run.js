@@ -9,6 +9,7 @@ import { convertCalendar, readForm, syncForm, writeForm } from './form.js';
 import { renderSummary } from './summary.js';
 import { renderBazi, defaultStep, defaultYear } from './view-bazi.js';
 import { renderZiwei, currentDecade } from './view-ziwei.js';
+import { renderBzReading, renderZwReading } from './view-reading.js';
 
 // 輸入有錯時，下方留著的是上一次的盤：調淡並設為 inert（不能操作、讀屏略過），免得被當成目前輸入的結果
 function setStale(on) {
@@ -59,6 +60,8 @@ export function run() {
   const warns = renderSummary();
   renderBazi();
   renderZiwei();
+  renderBzReading();
+  renderZwReading();
   // 第一張盤是頁面自己載入的範例，不必唸；之後每次換盤才說
   if (announce) $('#live').textContent = `已排盤：${nameOf(inp)}，四柱 ${bz.gz.join(' ')}。${warns ? `有 ${warns} 則提醒。` : ''}`;
   announce = true;

@@ -7,6 +7,7 @@ export function setTab(t) {
   $('#t-ziwei').setAttribute('aria-selected', String(zw));
   $('#p-bazi').hidden = zw;
   $('#p-ziwei').hidden = !zw;
+  $('#goto-label').textContent = zw ? '看星曜解讀' : '看讀盤'; // 分頁列那顆「看讀盤 ↓」：捲到目前分頁最下面那張卡
 }
 function go(t) {
   setTab(t);

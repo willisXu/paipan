@@ -41,5 +41,7 @@ export { relations } from './relations.js';
 export { shensha } from './shensha.js';
 export { strength, wuxingCount } from './strength.js';
 export { bazi, bzLiuYue } from './bazi.js';
+export { bzReading, bzJudge } from './reading.js';
 export { ziwei, SIHUA, ZW_OPTIONS } from './ziwei.js';
 export { zwSpans, zwDaXian, zwTongXian, zwXiaoXian, zwLiuNian, zwLiuYue, zwLiuRi, zwLiuShi } from './ziwei-yun.js';
+export { zwReading, zwReadLayer, ZW_TEXTS } from './ziwei-reading.js';
