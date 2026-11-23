@@ -66,16 +66,27 @@ const yunOf = inp => attempt(() => {
   };
 });
 
+/* 讀盤（第 12 版）：八字的七步法結論加上十步大運的對照；紫微的星曜解讀加上一個大限、一個流年。
+   挑哪一個大限、流年用筆數推，不取亂數：不動上面產生輸入的序列 */
+const readingOf = inp => attempt(() => {
+  const bz = PP.bazi(inp, PP.resolveTime(inp)), R = PP.bzReading(bz);
+  return { R, dayun: bz.dayun.map(d => PP.bzJudge(R, bz.dm, d.gz)) };
+});
+const zwReadOf = (inp, k) => attempt(() => {
+  const zw = PP.ziwei(inp, PP.resolveTime(inp));
+  return { R: PP.zwReading(zw), dec: PP.zwReadLayer(zw, PP.zwDaXian(zw, k % 12), '這十年'), yr: PP.zwReadLayer(zw, PP.zwLiuNian(zw, zw.birthYear + (k % 80)), '這一年') };
+});
+
 const { GAN, ZHI } = PP;
 const JIAZI = Array.from({ length: 60 }, (_, k) => GAN[k % 10] + ZHI[k % 12]);
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, k) => a + k);
 const pillarsOf = (list, natal) => list.map((s, i) => ({ pos: '年月日時運歲'[i], gan: s[0], zhi: s[1], natal: i < natal }));
 
 function compute() {
-  const out = { tables: {}, charts: [], ziwei: [], pillars: [], yun: [] };
+  const out = { tables: {}, charts: [], ziwei: [], pillars: [], yun: [], reading: [], zwread: [] };
   const T = out.tables;
   // 常數表與純函式：整個定義域都算一遍
-  for (const name of ['GAN', 'ZHI', 'WX', 'WX_KEY', 'CANG', 'SHICHEN', 'SIHUA', 'ZW_OPTIONS']) T[name] = hash(PP[name]);
+  for (const name of ['GAN', 'ZHI', 'WX', 'WX_KEY', 'CANG', 'SHICHEN', 'SIHUA', 'ZW_OPTIONS', 'ZW_TEXTS']) T[name] = hash(PP[name]);
   T.wxOf = hash([...GAN, ...ZHI].map(PP.wxOf));
   T.yinyang = hash([...GAN, ...ZHI].map(PP.yinyang));
   T.yearGZ = hash(range(1700, 2300).map(PP.yearGZ));
@@ -132,6 +143,8 @@ function compute() {
     if (k < 600) out.ziwei.push(hash(ziweiOf(inp)));
   }
   for (let k = 0; k < 300; k++) out.yun.push(hash(yunOf(inputs[k])));
+  for (let k = 0; k < 1500; k++) out.reading.push(hash(readingOf(inputs[k])));
+  for (let k = 0; k < 300; k++) out.zwread.push(hash(zwReadOf(inputs[k], k)));
   return { out, inputs };
 }
 
@@ -143,11 +156,11 @@ if (SHOW !== '') {
   if (k < actual.ziwei.length) console.log(json(ziweiOf(inp)));
   process.exit(0);
 }
-const count = o => Object.keys(o.tables).length + o.pillars.length + o.charts.length + o.ziwei.length + o.yun.length;
+const count = o => Object.keys(o.tables).length + o.pillars.length + o.charts.length + o.ziwei.length + o.yun.length + o.reading.length + o.zwread.length;
 if (UPDATE) {
   fs.mkdirSync(path.dirname(GOLDEN), { recursive: true });
   fs.writeFileSync(GOLDEN, zlib.gzipSync(JSON.stringify(actual)));
-  console.log(`已更新引擎基準檔：${count(actual)} 筆雜湊（表格 ${Object.keys(actual.tables).length}、任意柱組合 ${actual.pillars.length}、八字 ${actual.charts.length}、紫微 ${actual.ziwei.length}、紫微運限 ${actual.yun.length}），${(fs.statSync(GOLDEN).size / 1024).toFixed(0)} KB`);
+  console.log(`已更新引擎基準檔：${count(actual)} 筆雜湊（表格 ${Object.keys(actual.tables).length}、任意柱組合 ${actual.pillars.length}、八字 ${actual.charts.length}、紫微 ${actual.ziwei.length}、紫微運限 ${actual.yun.length}、讀盤 ${actual.reading.length}、星曜解讀 ${actual.zwread.length}），${(fs.statSync(GOLDEN).size / 1024).toFixed(0)} KB`);
   process.exit(0);
 }
 if (!fs.existsSync(GOLDEN)) { console.error('沒有基準檔。先用 --update 產生。'); process.exit(2); }
@@ -155,7 +168,7 @@ const golden = JSON.parse(zlib.gunzipSync(fs.readFileSync(GOLDEN)).toString());
 let fail = 0;
 const report = msg => { fail++; if (fail <= 12) console.log('  ✗', msg); };
 for (const name of new Set([...Object.keys(golden.tables), ...Object.keys(actual.tables)])) if (golden.tables[name] !== actual.tables[name]) report(`表格或函式 ${name} 的輸出和基準不同`);
-for (const [key, label] of [['pillars', '任意柱組合'], ['charts', '八字'], ['ziwei', '紫微'], ['yun', '紫微運限']]) {
+for (const [key, label] of [['pillars', '任意柱組合'], ['charts', '八字'], ['ziwei', '紫微'], ['yun', '紫微運限'], ['reading', '讀盤'], ['zwread', '星曜解讀']]) {
   const want = golden[key] || []; // 基準檔比這一類還舊的時候沒有這一欄：當成全部不同
   if (want.length !== actual[key].length) report(`${label}的筆數和基準不同（${actual[key].length}／${want.length}）`);
   actual[key].forEach((h, k) => { if (h !== want[k]) report(`${label}第 ${k} 筆和基準不同${key === 'pillars' ? '' : `：${JSON.stringify(inputs[k])}（用 --show=${k} 看完整輸出）`}`); });

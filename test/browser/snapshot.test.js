@@ -50,6 +50,10 @@ const SCENARIOS = [
   // 紫微的流時
   { id: '流時', mo: 9, day: 2, hr: 6 },
   { id: '晚子時、中州派、女命', date: '1990-06-15', time: '10:00', gender: '女', zhua: 'zhongzhou', dy: 1, ln: 4, dec: 2, yr: 0, mo: 3, day: 14, hr: 12, pal: 7 },
+  // 讀盤的幾種特別情形（第 12 版）：從格提示；月刃格；專旺提示（建祿格），紫微命宮空宮
+  { id: '從格提示', date: '1974-06-01', time: '10:23', gender: '女', dy: 3, ln: 4, dec: 3, yr: 4, pal: 2 },
+  { id: '月刃格、女命', date: '1988-12-23', time: '00:34', gender: '女', dy: 2, ln: 5, dec: 2, yr: 5, pal: 9 },
+  { id: '專旺提示、命宮空宮', date: '1977-05-09', time: '15:43', gender: '女', dy: 3, ln: 3, dec: 3, yr: 3, pal: 6 },
 ].map(s => ({ ...S, ...s }));
 
 // 只收合一般空白（原始碼排版用的縮排與換行）；全形空白是畫面內容的一部分，要原樣比對
@@ -97,6 +101,11 @@ async function capture(browser, sc, harness) {
     await page.locator('#copy').click();
     await page.waitForSelector('#copytext');
     snaps.text = await page.locator('#copytext').inputValue();
+    // 讀盤紀錄與星曜解讀的「複製」文字（第 12 版）：和畫面出自同一份資料，這裡另外留一份純文字的快照
+    for (const [btn, key] of [['#rd-copy', 'rdText'], ['#zr-copy', 'zrText']]) {
+      await page.locator(btn).evaluate(el => el.click()); // 讀盤卡在八字分頁，這時看的是紫微分頁：直接送點擊
+      snaps[key] = await page.locator('#copytext').inputValue();
+    }
     snaps.tabs = await page.evaluate(() => `${location.hash}|${document.querySelector('#t-bazi').getAttribute('aria-selected')}|${document.querySelector('#p-bazi').hidden}`);
   }
   snaps.pageErrors = errors.join(' | ');

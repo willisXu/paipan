@@ -74,7 +74,7 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
   section('兩種建置：網站版有列印按鈕，發布平台用的片段沒有');
   {
     const { ctx, page, errors } = await openSite(browser, server.url);
-    eq(await buttonNames(page.locator('.tabtools')), ['複製文字盤', '列印／存PDF', '八字、紫微一起印'], '網站版的工具列有三顆按鈕，讀屏唸的就是按鈕上的字');
+    eq(await buttonNames(page.locator('.tabtools')), ['看讀盤', '複製文字盤', '列印／存PDF', '八字、紫微一起印'], '網站版的工具列有四顆按鈕（看讀盤、複製文字盤和兩顆列印），讀屏唸的就是按鈕上的字');
     ok((await page.locator('footer.colophon').innerText()).includes('另存為 PDF'), '網站版的頁尾說明怎麼存成 PDF');
     await page.locator('#t-ziwei').click();
     ok(!await page.locator('#printed').isVisible() && !await page.locator('.legend .po').isVisible() && await page.locator('.legend .so').isVisible(), '只印在紙上的那幾句，畫面上看不到；畫面上教人怎麼點的那一句看得到');
@@ -84,7 +84,7 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
     const a = await openPage(browser, harness);
     const tools = await buttonNames(a.page.locator('.tabtools'));
     const body = await a.page.locator('body').innerText();
-    ok(tools.length === 1 && tools[0] === '複製文字盤' && await a.page.locator('#print, #print-both').count() === 0, `發布平台用的片段沒有列印按鈕（那裡的檢視框開不了列印對話框）：${tools.join('、')}`);
+    ok(tools.join() === '看讀盤,複製文字盤' && await a.page.locator('#print, #print-both').count() === 0, `發布平台用的片段沒有列印按鈕（那裡的檢視框開不了列印對話框）：${tools.join('、')}`);
     ok(!body.includes('存 PDF') && !body.includes('另存為 PDF'), '片段的說明文字也不提列印');
     ok(a.errors.length === 0, `片段照常運作，無錯誤${a.errors.length ? '：' + a.errors.join(' | ') : ''}`);
     await a.ctx.close();
@@ -138,7 +138,7 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
     ok(m.sideBySide && m.sideBySide[0] === m.sideBySide[1] && m.sideBySide[3] > m.sideBySide[2], `四柱在左，旺衰三看和五行字數疊在右邊：${JSON.stringify(m.sideBySide)}`);
     ok(m.rels >= 10 && m.relOneLine, `${m.rels} 筆關係，每一筆排成一行（類別、內容、說明、位置與標籤）`);
     ok(m.lmTitle === '2026 丙午年的流月 十二個節氣月，每個月從交節的那一刻起算。', `教人怎麼點的那半句不印：${m.lmTitle}`);
-    ok(m.printed.startsWith('八字紫微排盤（127.0.0.1:') && m.printed.includes('以 2026-11-11 為今天') && m.printed.includes('只排盤，不解盤'), `紙上的頁尾寫明從哪裡印的、以哪一天為今天：${m.printed}`);
+    ok(m.printed.startsWith('八字紫微排盤（127.0.0.1:') && m.printed.includes('以 2026-11-11 為今天') && m.printed.includes('讀盤與星曜解讀是程式照規則排的，說的是傾向，不是判決'), `紙上的頁尾寫明從哪裡印的、以哪一天為今天：${m.printed}`);
     ok(m.exact === 'exact' && m.bodyBg === 'rgb(255, 255, 255)' && m.cardBg === 'rgb(255, 255, 255)', `紙是白的；有底色的小標籤照樣印（${m.exact}）`);
 
     // 輸入有錯時下面留著的是上一次的盤：紙上要看得到錯誤訊息，盤也還是淡的
@@ -225,7 +225,23 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
     await setBoth(page, true);
     const both = await pageCount(page);
     await setBoth(page, false);
-    eq([bazi, ziwei, both], [2, 1, 3], '八字兩頁、紫微本命盤一頁、兩個都印三頁');
+    eq([bazi, ziwei, both], [4, 2, 6], '讀盤與星曜解讀展開時：八字四頁、紫微兩頁、兩個都印六頁（兩張卡各從新的一頁開始）');
+    // 兩張卡共用一個收合狀態：收起來整張不印，頁數回到沒有讀盤時的樣子
+    await tap(page, '#zr-toggle');
+    const closed = [];
+    await page.locator('#t-bazi').click(); closed.push(await pageCount(page));
+    await page.locator('#t-ziwei').click(); closed.push(await pageCount(page));
+    await setBoth(page, true); closed.push(await pageCount(page)); await setBoth(page, false);
+    eq(closed, [2, 1, 3], '讀盤收起來時：八字兩頁、紫微本命盤一頁、兩個都印三頁');
+    await page.emulateMedia({ media: 'print' });
+    const rule = await page.evaluate(() => [...document.querySelectorAll('.rd')].map(el => [el.id, getComputedStyle(el).breakBefore, getComputedStyle(el).display]));
+    eq(rule, [['rd', 'page', 'none'], ['zr', 'page', 'none']], '列印樣式：兩張卡都設成從新的一頁開始；收起來的整張不印');
+    await page.emulateMedia({ media: null }); // 回到不模擬：page.pdf() 在模擬 screen 時會照螢幕版面印
+    await tap(page, '#zr-toggle');
+    await page.emulateMedia({ media: 'print' });
+    const open = await page.evaluate(() => ({ rd: getComputedStyle(document.querySelector('#rd')).display, rs: [...new Set([...document.querySelectorAll('.rs')].map(el => getComputedStyle(el).breakInside))] }));
+    eq(open, { rd: 'block', rs: ['avoid'] }, '展開時照印，每一段都不會被切成兩頁');
+    await page.emulateMedia({ media: null });
     await page.locator('#decs [data-today]').click();
     const layered = await pageCount(page);
     ok(layered >= 1 && layered <= 3, `紫微疊到流日 ${layered} 頁（格子變高，所選宮位的說明可能排到下一頁）`);
