@@ -76,9 +76,11 @@ export async function serveDir(dir, { tamper = {} } = {}) {
 }
 
 /* 開「放上網站的那一版」（serveDir 送出來的網址）。同一個來源的請求照常送，其餘外部請求一律擋掉並記在 external 裡，
-   測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定；init 也一樣，是頁面自己的腳本執行之前先在頁面裡跑的函式。 */
-export async function openSite(browser, url, { context = {}, init = [] } = {}) {
-  const ctx = await browser.newContext({ ...DESKTOP, ...context });
+   測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定；init 也一樣，是頁面自己的腳本執行之前先在頁面裡跑的函式。
+   網站版會註冊 service worker（第 13 版的網頁 App）：一般的測試把它擋掉（sw: false），每次開頁都直接向伺服器要檔案、彼此不互相影響；
+   測網頁 App 的那一支（pwa.test.js）才打開。 */
+export async function openSite(browser, url, { context = {}, init = [], sw = false } = {}) {
+  const ctx = await browser.newContext({ ...DESKTOP, serviceWorkers: sw ? 'allow' : 'block', ...context });
   const page = await ctx.newPage();
   const errors = [], external = [], responses = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));

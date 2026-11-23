@@ -17,6 +17,8 @@ export default [
   { languageOptions: { ecmaVersion: 2022, sourceType: 'module' }, rules },
   { files: ['src/engine/**'], languageOptions: { globals: libs } },
   { files: ['src/app/**'], languageOptions: { globals: { ...globals.browser, ...libs } } },
+  // 網頁 App 的 service worker（第 13 版）：在 worker 裡跑，沒有 document
+  { files: ['src/sw.js'], languageOptions: { globals: globals.serviceworker } },
   { files: ['scripts/**', 'eslint.config.js'], languageOptions: { globals: globals.node } },
   // 測試在 Node 執行，但 page.evaluate 裡的函式是送到瀏覽器跑的，所以兩邊的全域變數都會出現
   { files: ['test/**'], languageOptions: { globals: { ...globals.node, ...globals.browser, ...libs } }, rules: { 'no-shadow': 'off' } },

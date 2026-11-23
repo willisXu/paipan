@@ -13,6 +13,7 @@ import { initTabs, setTab } from './tabs.js';
 import { initTextChart } from './text-chart.js';
 import { initReadingView } from './view-reading.js';
 import { initPrint } from './print.js';
+import { initPwa } from './pwa.js';
 import { initSaved, renderSaved } from './saved.js';
 import { initRun, run } from './run.js';
 
@@ -38,6 +39,7 @@ function start() {
   initTextChart();
   initReadingView();
   initPrint();
+  initPwa();
   initSaved();
   initRun();
 

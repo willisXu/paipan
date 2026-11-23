@@ -380,6 +380,9 @@ footer.colophon p { margin: 0; max-width: 76ch; }
 footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: 8px 16px; border-radius: 999px; font-size: 14px; z-index: 20; }
+/* 網頁 App 的「有新版本」（第 13 版）：貼在畫面底下，避開 Home 指示條；按了才換版本 */
+.update { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 21; display: flex; align-items: center; gap: 12px;
+  background: var(--sheet); color: var(--ink); border: 1px solid var(--rule-2); border-radius: 12px; padding: 8px 8px 8px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .18); font-size: 14px; white-space: nowrap; }
 .copybox { width: 100%; min-height: 220px; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; background: var(--paper); color: var(--ink); border: 1px solid var(--field-line); border-radius: 7px; padding: 10px; }
 @media (prefers-reduced-motion: no-preference) {
   .btn, .chip2, .yun, .cell, .tab { transition: background-color .15s, border-color .15s, color .15s; }
@@ -402,7 +405,7 @@ footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-
 /* 直式；紙張大小不指定，A4、Letter 都可以。邊界留給瀏覽器印頁首頁尾（日期、頁碼） */
 @page { size: portrait; margin: 12mm; }
 @media print {
-  .so, .masthead, .birth > :not(#err), .tabbar, #copyfallback, .toast, .yunbar, .swipe { display: none !important; }
+  .so, .masthead, .birth > :not(#err), .tabbar, #copyfallback, .toast, .update, .yunbar, .swipe { display: none !important; }
   /* 紙是白的：底色都換成白色。其餘有底色的小東西（四化、標籤、「今」、選到的那一格）照樣要印，
      不然反白的字在紙上就看不見了；瀏覽器預設不印背景，這裡明說要印 */
   :root { --paper: #fff; --sheet: #fff; }

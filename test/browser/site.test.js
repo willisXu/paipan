@@ -53,7 +53,7 @@ const sha = f => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('
     }));
     ok(doc.lang === 'zh-Hant' && doc.compat === 'CSS1Compat' && doc.charsetFirst === 'utf-8', `標準模式、語言標成繁體中文、編碼宣告排在最前面：${JSON.stringify([doc.lang, doc.compat, doc.charsetFirst])}`);
     ok(doc.title === '八字紫微排盤' && doc.titleInHead === 1 && doc.strayInBody === 0, `標題與樣式都在 <head> 裡，<body> 裡沒有：${doc.titleInHead}／${doc.strayInBody}`);
-    ok(doc.desc.includes('只排盤，不解盤') && doc.og === '八字紫微排盤' && doc.icon === 'data:image/svg+xml,' && doc.platformMeta === 0, '有說明文字、分享用的標題、分頁圖示；沒有帶著發布平台專用的標記');
+    ok(doc.desc.includes('讀盤紀錄與星曜解讀') && doc.desc.includes('沒有網路也能排盤') && doc.og === '八字紫微排盤' && doc.icon === 'data:image/svg+xml,' && doc.platformMeta === 0, '有說明文字、分享用的標題、分頁圖示；沒有帶著發布平台專用的標記');
     await page.evaluate(AXE);
     const { violations } = await page.evaluate(() => window.axe.run(document, { resultTypes: ['violations'] }));
     ok(violations.length === 0, `axe-core 掃整份文件沒有違規${violations.length ? '：' + violations.map(v => v.id).join('、') : ''}`);

@@ -96,7 +96,7 @@ for (const lib of libs) {
 const cut = site.indexOf('<header');
 if (cut < 0 || site.indexOf('<header', cut + 1) >= 0) throw new Error('src/index.html 應該恰好有一個 <header>，建置靠它分出 <head> 的內容');
 const headPart = site.slice(0, cut).replace(/<meta name="claude:[^>]*>\n?/, '').trim();
-const DESC = '輸入生辰，同時排出子平八字（四柱、十神、大運流年）與紫微斗數十二宮命盤。只排盤，不解盤。';
+const DESC = '輸入生辰，同時排出子平八字（四柱、十神、大運流年流月）與紫微斗數十二宮命盤，並照規則寫出讀盤紀錄與星曜解讀。可以加到主畫面，沒有網路也能排盤。';
 const ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#5A3D6E"/><text x="32" y="47" font-size="42" text-anchor="middle" fill="#fff" font-family="serif">命</text></svg>')}`;
 const head = [
   '<meta charset="utf-8">',
@@ -111,9 +111,50 @@ const head = [
   `<link rel="icon" href="${ICON}">`,
   '<link rel="preconnect" href="https://fonts.googleapis.com">',
   '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
-  // 和發布平台補的骨架相同的基本樣式；頁面的樣式接在後面
-  '<style>:root{color-scheme:light}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>',
+  // 網頁 App（第 13 版）：manifest 與主畫面圖示。iOS 從 manifest 讀名稱、圖示、獨立視窗；主畫面上的名稱另外給短的
+  '<link rel="manifest" href="manifest.webmanifest">',
+  '<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">',
+  '<meta name="apple-mobile-web-app-title" content="排盤">',
+  '<meta name="mobile-web-app-capable" content="yes">',
+  // 和發布平台補的骨架相同的基本樣式（含瀏海、Home 指示條的安全區域）；頁面的樣式接在後面
+  '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>',
   headPart,
 ].join('\n');
 fs.writeFileSync(path.join(siteDir, 'index.html'), `<!doctype html>\n<html lang="zh-Hant">\n<head>\n${head}\n</head>\n<body>\n${site.slice(cut)}</body>\n</html>\n`);
-console.log('已輸出 dist/site/（index.html 與 lib/ 裡的 ' + fs.readdirSync(path.join(siteDir, 'lib')).length + ' 個檔）');
+
+/* 網頁 App（第 13 版）：主畫面圖示、manifest、service worker，只有網站版有。
+   圖示由 scripts/icons.js 產生、提交在 src/icons/，這裡只複製。service worker 的原始檔是 src/sw.js：
+   把要預先快取的檔案清單，和這些檔案內容的雜湊（版本）填進去；任何一個檔變了，sw.js 就跟著變，瀏覽器才會裝新版本 */
+const icons = fs.readdirSync(path.join(root, 'src', 'icons')).filter(f => f.endsWith('.png')).sort();
+const ICON_SIZES = { 'apple-touch-icon.png': 180, 'icon-192.png': 192, 'icon-512.png': 512, 'maskable-512.png': 512 };
+if (JSON.stringify(icons) !== JSON.stringify(Object.keys(ICON_SIZES).sort())) throw new Error(`src/icons/ 的圖示應該是 ${Object.keys(ICON_SIZES).join('、')}，現在是 ${icons.join('、')}。用 node scripts/icons.js 重新產生`);
+fs.mkdirSync(path.join(siteDir, 'icons'));
+for (const f of icons) {
+  const png = fs.readFileSync(path.join(root, 'src', 'icons', f));
+  if (png.readUInt32BE(16) !== ICON_SIZES[f] || png.readUInt32BE(20) !== ICON_SIZES[f]) throw new Error(`src/icons/${f} 應該是 ${ICON_SIZES[f]}×${ICON_SIZES[f]}`);
+  fs.writeFileSync(path.join(siteDir, 'icons', f), png);
+}
+const manifest = {
+  id: './', name: '八字紫微排盤', short_name: '排盤', description: DESC, lang: 'zh-Hant', dir: 'ltr',
+  start_url: './', scope: './', display: 'standalone', background_color: '#ECEFED', theme_color: '#F9FAF9', categories: ['education', 'utilities'],
+  icons: [
+    { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    { src: 'icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
+  ],
+};
+fs.writeFileSync(path.join(siteDir, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');
+// 預先快取：頁面（網站的根，也就是 index.html）、manifest、兩個函式庫、四個圖示。授權條款不必離線
+const precache = ['./', 'manifest.webmanifest', ...libs.map(l => `lib/${l.name}-${l.version}${l.ext}`), ...icons.map(f => `icons/${f}`)];
+const fileOf = p => path.join(siteDir, p === './' ? 'index.html' : p);
+const shipped = fs.readdirSync(siteDir, { recursive: true }).map(f => f.split(path.sep).join('/')).filter(f => /\.(html|js|png|webmanifest)$/.test(f) && f !== 'sw.js');
+const notCached = shipped.filter(f => !precache.map(p => (p === './' ? 'index.html' : p)).includes(f));
+if (notCached.length) throw new Error(`網站裡有檔案沒有預先快取，離線時會缺：${notCached.join('、')}`);
+const hash = crypto.createHash('sha256');
+for (const p of precache) hash.update(p).update('\0').update(fs.readFileSync(fileOf(p)));
+const version = hash.digest('hex').slice(0, 12);
+const swSrc = read('src/sw.js');
+for (const mark of ["'/*@VERSION@*/'", '[/*@PRECACHE@*/]']) if (swSrc.split(mark).length !== 2) throw new Error(`src/sw.js 裡的 ${mark} 標記必須恰好出現一次`);
+fs.writeFileSync(path.join(siteDir, 'sw.js'), swSrc.replace("'/*@VERSION@*/'", `'${version}'`).replace('[/*@PRECACHE@*/]', `[${precache.map(p => `'${p}'`).join(', ')}]`));
+console.log('已輸出 dist/site/（index.html、lib/ 裡的 ' + fs.readdirSync(path.join(siteDir, 'lib')).length + ' 個檔、' + icons.length + ' 個圖示、manifest、service worker 版本 ' + version + '）');
