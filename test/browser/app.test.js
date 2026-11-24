@@ -194,6 +194,8 @@ const hasBoth = page => page.evaluate(() => document.body.classList.contains('pr
     const foot = await page.locator('footer.colophon').innerText();
     ok(foot.includes('iOS 的列印面板') && foot.includes('存到「檔案」') && !foot.includes('另存為 PDF') && !foot.includes('瀏覽器自己的列印'), '列印的說明講 iOS 的列印面板和怎麼存成 PDF，沒有網站版講瀏覽器的那一段');
     ok(foot.includes('不連網路') && foot.includes('不收集任何資料'), '說明資料只存在裝置上、不連網路、不收集資料');
+    const links = await page.locator('footer.colophon a').evaluateAll(as => as.map(a => a.getAttribute('href')));
+    ok(links.includes('https://willisxu.github.io/paipan/privacy.html') && links.includes('https://willisxu.github.io/paipan/support.html'), `App 裡看得到隱私權政策與支援頁的連結（App Store 要求 App 內也找得到隱私權政策；點了在 Safari 打開）：${links.join('、')}`);
     ok(!await page.locator('details.licenses pre').first().isVisible(), '授權條款平常收著');
     await page.locator('details.licenses summary').click();
     const lic = await page.evaluate(() => [...document.querySelectorAll('details.licenses h3')].map(h => [h.textContent, h.nextElementSibling.nextElementSibling.textContent]));

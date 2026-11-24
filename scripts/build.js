@@ -165,8 +165,17 @@ const manifest = {
   ],
 };
 fs.writeFileSync(path.join(siteDir, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');
-// 預先快取：頁面（網站的根，也就是 index.html）、manifest、兩個函式庫、四個圖示。授權條款不必離線
-const precache = ['./', 'manifest.webmanifest', ...libs.map(l => `lib/${l.name}-${l.version}${l.ext}`), ...icons.map(f => `icons/${f}`)];
+/* 第 14 版：支援頁與隱私權政策（src/pages/，App Store 的「支援網址」「隱私權政策網址」指到這兩頁）。
+   是獨立的小網頁，不用頁面的樣式與腳本，也不連外面的東西；照原樣複製 */
+const pages = fs.readdirSync(path.join(root, 'src', 'pages')).filter(f => f.endsWith('.html')).sort();
+if (JSON.stringify(pages) !== JSON.stringify(['privacy.html', 'support.html'])) throw new Error(`src/pages/ 應該是 privacy.html、support.html，現在是 ${pages.join('、')}`);
+for (const f of pages) {
+  const html = read(`src/pages/${f}`);
+  if (/<(?:script|link|img|iframe)\b/i.test(html) || /url\(|@import/i.test(html)) throw new Error(`src/pages/${f} 不可以載入腳本、外部樣式、圖片：這兩頁要在任何地方都打得開`);
+  fs.writeFileSync(path.join(siteDir, f), html);
+}
+// 預先快取：頁面（網站的根，也就是 index.html）、manifest、兩個函式庫、四個圖示、支援頁與隱私權政策。授權條款不必離線
+const precache = ['./', 'manifest.webmanifest', ...libs.map(l => `lib/${l.name}-${l.version}${l.ext}`), ...icons.map(f => `icons/${f}`), ...pages];
 const fileOf = p => path.join(siteDir, p === './' ? 'index.html' : p);
 const shipped = fs.readdirSync(siteDir, { recursive: true }).map(f => f.split(path.sep).join('/')).filter(f => /\.(html|js|png|webmanifest)$/.test(f) && f !== 'sw.js');
 const notCached = shipped.filter(f => !precache.map(p => (p === './' ? 'index.html' : p)).includes(f));

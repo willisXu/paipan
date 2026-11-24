@@ -71,8 +71,8 @@ const hermetic = async ctx => { await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, 
     ok(!(await lic.content()).includes('八字紫微排盤') && (await lic.evaluate(() => document.body.innerText)).length > 100, '開網站裡的其他檔（授權條款）拿到的是那個檔，不是頁面');
     await lic.close();
     const cached = await page.evaluate(async () => { const keys = await caches.keys(); const c = await caches.open(keys.find(k => k.startsWith('paipan-') && k !== 'paipan-fonts')); return (await c.keys()).map(r => new URL(r.url).pathname); });
-    eq(cached.sort(), ['/', '/icons/apple-touch-icon.png', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/lib/iztro-2.6.3.min.js', '/lib/lunar-javascript-1.7.7.js', '/manifest.webmanifest'],
-      '預先快取了頁面、manifest、兩個函式庫、四個圖示');
+    eq(cached.sort(), ['/', '/icons/apple-touch-icon.png', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/lib/iztro-2.6.3.min.js', '/lib/lunar-javascript-1.7.7.js', '/manifest.webmanifest', '/privacy.html', '/support.html'],
+      '預先快取了頁面、manifest、兩個函式庫、四個圖示、支援頁與隱私權政策');
     await server.close(); // 伺服器整個關掉，比斷網更徹底
     await ctx.setOffline(true);
     await page.reload();
