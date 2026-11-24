@@ -14,12 +14,12 @@
     "APPLE_WEB_CLIENT_ID": "io.github.willisxu.paipan.web",
     "APPLE_WEB_REDIRECT": "https://willisxu.github.io/paipan/"
   },
-  // database_id 由上面那個 d1 create 指令自動填上（全是 0 的是還沒建）
+  // database_id 由上面那個 d1 create 指令自動填上（2026-11-24 建在亞太區；資料庫的代號不是祕密，存取要 Cloudflare 帳號的授權）
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "paipan",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "6271c3fe-37f5-43d3-a531-5980271851d6",
       "migrations_dir": "migrations"
     }
   ],

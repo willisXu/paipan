@@ -72,7 +72,11 @@ const hasBoth = page => page.evaluate(() => document.body.classList.contains('pr
       remote: [...document.querySelectorAll('script[src], link[href]')].map(e => e.src || e.href).filter(u => !u.startsWith(location.origin)),
       lang: document.documentElement.lang, charsetFirst: document.head.firstElementChild.getAttribute('charset'),
     }));
-    ok(/default-src 'self'/.test(head.csp) && /connect-src 'self'/.test(head.csp) && /font-src 'self'/.test(head.csp) && !/https?:/.test(head.csp), `頁首有內容安全政策，只准載入 App 自己的檔案：${head.csp}`);
+    // 第 15 版：有帳號功能時，連出去（connect-src）只多開帳號的後端那一個網址；其他一律只准 App 自己的檔案
+    const api = JSON.parse(fs.readFileSync(path.join(root, 'account.config.json'), 'utf8')).apiBase;
+    const others = head.csp.replace(/connect-src [^;]*/, '');
+    const connect = (head.csp.match(/connect-src ([^;]*)/) || [])[1];
+    ok(/default-src 'self'/.test(head.csp) && /font-src 'self'/.test(head.csp) && !/https?:/.test(others) && connect === (api ? `'self' ${api}` : "'self'"), `頁首有內容安全政策，只准載入 App 自己的檔案${api ? '，連出去只准帳號的後端' : ''}：${head.csp}`);
     ok(!head.manifest && !head.touch && head.remote.length === 0, `沒有 manifest、主畫面圖示，也沒有指向別處的 <script>、<link>：${head.remote.join('、') || '沒有'}`);
     ok(head.lang === 'zh-Hant' && head.charsetFirst === 'utf-8', '語言標成繁體中文、編碼宣告排在最前面');
     const shipped = fs.readdirSync(appDir, { recursive: true }).map(f => f.split(path.sep).join('/')).filter(f => fs.statSync(path.join(appDir, f)).isFile());

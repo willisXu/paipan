@@ -1,5 +1,5 @@
 {
-  "apiBase": "",
+  "apiBase": "https://paipan-api.zhixuan-willis.workers.dev",
   "webClientId": "io.github.willisxu.paipan.web",
   "webRedirect": "https://willisxu.github.io/paipan/"
 }
