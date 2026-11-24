@@ -4,8 +4,9 @@
   "type": "module",
   "description": "八字紫微排盤的帳號與同步後端（Cloudflare Workers ＋ D1）",
   "scripts": {
-    "deploy": "wrangler deploy",
+    "create-db": "wrangler d1 create paipan --location apac --binding DB",
     "migrate": "wrangler d1 migrations apply paipan --remote",
+    "deploy": "wrangler deploy",
     "test": "node test/workerd.test.js"
   },
   "devDependencies": {
@@ -13,6 +14,6 @@
     "wrangler": "4.167.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }

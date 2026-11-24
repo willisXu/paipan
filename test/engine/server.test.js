@@ -9,7 +9,7 @@ import '../helpers/libs.js'; // 網頁的檢查（saved-data.js）會用到曆�
 import { ok, eq, section, finish } from '../helpers/harness.js';
 import { createD1 } from '../helpers/d1.js';
 import { appleMock } from '../helpers/apple-mock.js';
-import { scenario, client, ENV, WEB, APP, CHART_A, CHART_B } from '../helpers/server-scenario.js';
+import { scenario, client, readWrangler, ENV, WEB, APP, CHART_A, CHART_B } from '../helpers/server-scenario.js';
 import { clean, MAX_SAVED } from '../../src/app/saved-data.js';
 import worker from '../../server/src/index.js';
 import { resetAppleKeys } from '../../server/src/apple.js';
@@ -125,20 +125,24 @@ section('（Node）一個盤的欄位：後端和網頁的檢查一致');
   ok(maxServer === MAX_SAVED, `已存清單的上限兩邊相同：後端 ${maxServer}、網頁 ${MAX_SAVED}`);
 }
 
-section('（Node）wrangler.toml 和 App、網站的設定一致');
+section('（Node）wrangler.jsonc 和 App、網站的設定一致');
 {
   // Workers 把主模組的每個具名匯出都當成進入點：匯出別的東西，部署後啟動不了
   eq(Object.keys(await import('../../server/src/index.js')), ['default'], '後端的主模組只匯出 default（fetch 與 scheduled）');
-  const toml = read('server/wrangler.toml');
-  const v = name => (toml.match(new RegExp(`^${name} = "([^"]*)"$`, 'm')) || [])[1];
+  const w = readWrangler();
   const cap = JSON.parse(read('capacitor.config.json'));
-  eq(v('APPLE_APP_ID'), cap.appId, 'Apple 登入的 App 識別碼就是 App 的 Bundle ID');
-  eq(v('ALLOWED_ORIGINS'), ENV.ALLOWED_ORIGINS, '允許的來源：網站和 App 裡的網頁（測試用的也是這兩個）');
-  for (const k of ['APPLE_WEB_CLIENT_ID', 'APPLE_WEB_REDIRECT']) eq(v(k), ENV[k], `${k} 和測試的設定相同`);
+  eq(w.vars.APPLE_APP_ID, cap.appId, 'Apple 登入的 App 識別碼就是 App 的 Bundle ID');
+  eq(w.vars.ALLOWED_ORIGINS, ENV.ALLOWED_ORIGINS, '允許的來源：網站和 App 裡的網頁（測試用的也是這兩個）');
+  for (const k of ['APPLE_WEB_CLIENT_ID', 'APPLE_WEB_REDIRECT']) eq(w.vars[k], ENV[k], `${k} 和測試的設定相同`);
   const account = JSON.parse(read('account.config.json'));
-  ok(account.webClientId === v('APPLE_WEB_CLIENT_ID') && account.webRedirect === v('APPLE_WEB_REDIRECT'), '網頁建置用的 Services ID、redirect 網址和後端的一樣（account.config.json）');
-  ok(/^binding = "DB"$/m.test(toml) && /^migrations_dir = "migrations"$/m.test(toml) && /^main = "src\/index\.js"$/m.test(toml), '資料庫綁定叫 DB、migration 在 migrations/、進入點是 src/index.js');
-  ok(!/SESSION_SECRET|TOKEN_KEY|PRIVATE KEY/.test(toml.replace(/^#.*$/gm, '')), '祕密不寫在設定檔裡');
+  ok(account.webClientId === w.vars.APPLE_WEB_CLIENT_ID && account.webRedirect === w.vars.APPLE_WEB_REDIRECT, '網頁建置用的 Services ID、redirect 網址和後端的一樣（account.config.json）');
+  const db = w.d1_databases;
+  ok(w.main === 'src/index.js' && db.length === 1 && db[0].binding === 'DB' && db[0].database_name === 'paipan' && db[0].migrations_dir === 'migrations', '進入點是 src/index.js；資料庫綁定叫 DB、名字 paipan、migration 在 migrations/');
+  ok(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(db[0].database_id), `database_id 是 UUID 的格式（還沒建時全是 0；npm run create-db 自動填上）：${db[0].database_id}`);
+  eq(Object.keys(w.vars).sort(), ['ALLOWED_ORIGINS', 'APPLE_APP_ID', 'APPLE_WEB_CLIENT_ID', 'APPLE_WEB_REDIRECT'], '設定檔裡只有不是祕密的四項；SESSION_SECRET、TOKEN_KEY、APPLE_TEAM_ID、APPLE_KEY_ID、APPLE_PRIVATE_KEY 用 wrangler secret put');
+  eq(w.triggers.crons, ['17 19 * * *'], '每天清理一次（台灣時間凌晨 3:17）');
+  const pkg = JSON.parse(read('server/package.json'));
+  ok(pkg.scripts['create-db'] === 'wrangler d1 create paipan --location apac --binding DB' && pkg.scripts.migrate === 'wrangler d1 migrations apply paipan --remote', '建資料庫指名 --binding DB（wrangler 才會把 database_id 寫回這個綁定）、放在亞太區');
 }
 
 finish();

@@ -4,6 +4,14 @@
    call(method, path, { body, token, origin, raw }) 送一個請求，回傳 { status, headers, body }（body 已解析 JSON）；
    sql(query, ...args) 直接查資料庫（回傳列的陣列）；apple 是 test/helpers/apple-mock.js 的假 Apple；env 是後端的設定。 */
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+/* 後端的設定檔 server/wrangler.jsonc：JSON 加上整行的 // 註解（設定檔裡的註解都寫在自己的一行，網址裡的 // 不受影響） */
+export function readWrangler() {
+  const text = fs.readFileSync(fileURLToPath(new URL('../../server/wrangler.jsonc', import.meta.url)), 'utf8');
+  return JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
+}
 
 export const WEB = 'https://willisxu.github.io', APP = 'capacitor://localhost';
 export const ENV = {

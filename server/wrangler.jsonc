@@ -1,0 +1,33 @@
+// 八字紫微排盤的帳號與同步後端（Cloudflare Workers ＋ D1）。部署步驟見 server/README.md
+// 用 JSONC 而不是 TOML：npx wrangler d1 create paipan --location apac --binding DB 會自動把新資料庫的 database_id 寫進來（TOML 不會）
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "paipan-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-01",
+  "workers_dev": true,
+  // 不是祕密的設定。祕密與 Apple 金鑰的資料（SESSION_SECRET、TOKEN_KEY、APPLE_TEAM_ID、APPLE_KEY_ID、APPLE_PRIVATE_KEY）
+  // 不寫在這裡，用 npx wrangler secret put 設定
+  "vars": {
+    "ALLOWED_ORIGINS": "https://willisxu.github.io,capacitor://localhost",
+    "APPLE_APP_ID": "io.github.willisxu.paipan",
+    "APPLE_WEB_CLIENT_ID": "io.github.willisxu.paipan.web",
+    "APPLE_WEB_REDIRECT": "https://willisxu.github.io/paipan/"
+  },
+  // database_id 由上面那個 d1 create 指令自動填上（全是 0 的是還沒建）
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "paipan",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // 每天清一次過期的登入憑證與 nonce 紀錄（UTC 19:17，台灣時間凌晨 3:17）
+  "triggers": {
+    "crons": ["17 19 * * *"]
+  },
+  "observability": {
+    "enabled": true
+  }
+}

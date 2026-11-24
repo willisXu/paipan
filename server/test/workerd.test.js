@@ -8,11 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
 import { ok, eq, section, finish } from '../../test/helpers/harness.js';
 import { appleMock } from '../../test/helpers/apple-mock.js';
-import { scenario, client, ENV, APP } from '../../test/helpers/server-scenario.js';
+import { scenario, client, readWrangler, ENV, APP } from '../../test/helpers/server-scenario.js';
 
 const server = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const toml = fs.readFileSync(path.join(server, 'wrangler.toml'), 'utf8');
-const compatibilityDate = toml.match(/^compatibility_date = "([\d-]+)"$/m)[1];
+const wrangler = readWrangler();
+const compatibilityDate = wrangler.compatibility_date;
 const apple = await appleMock({ teamId: ENV.APPLE_TEAM_ID, keyId: ENV.APPLE_KEY_ID, appId: ENV.APPLE_APP_ID, webId: ENV.APPLE_WEB_CLIENT_ID, webRedirect: ENV.APPLE_WEB_REDIRECT });
 const env = { ...ENV, APPLE_PRIVATE_KEY: apple.pem };
 const blocked = [];
@@ -54,7 +54,7 @@ try {
     await sql('INSERT INTO used_nonces (nonce, expires_at) VALUES (?1, ?2)', 'stale', Date.now() - 1);
     await sql('UPDATE sessions SET expires_at = ?1 WHERE user_id = ?2', Date.now() - 1, s.body.user.id);
     const worker = await mf.getWorker();
-    await worker.scheduled({ cron: (toml.match(/^crons = \["([^"]+)"\]$/m) || [])[1] });
+    await worker.scheduled({ cron: wrangler.triggers.crons[0] });
     ok((await sql('SELECT COUNT(*) AS n FROM used_nonces WHERE nonce = ?1', 'stale'))[0].n === 0, '過期的 nonce 紀錄清掉了');
     ok((await sql('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?1', s.body.user.id))[0].n === 0 && (await call('GET', '/v1/me', { origin: APP, token: s.body.token })).status === 401, '過期的登入憑證清掉了');
   }
