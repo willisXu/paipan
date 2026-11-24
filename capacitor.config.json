@@ -1,0 +1,12 @@
+{
+  "appId": "io.github.willisxu.paipan",
+  "appName": "排盤",
+  "webDir": "dist/app",
+  "zoomEnabled": true,
+  "ios": {
+    "contentInset": "never",
+    "allowsLinkPreview": false,
+    "preferredContentMode": "mobile",
+    "handleApplicationNotifications": false
+  }
+}

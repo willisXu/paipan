@@ -383,6 +383,10 @@ main.stale > .summary, main.stale > .tabbar, main.stale > .panel { opacity: .4; 
 footer.colophon { font-size: 12.5px; color: var(--ink-3); line-height: 1.7; display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 14px; }
 footer.colophon p { margin: 0; max-width: 76ch; }
 footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+/* App 版（第 14 版）頁尾的開放原始碼授權：平常收著，展開才看得到各條款的原文 */
+footer.colophon .licenses summary { cursor: pointer; width: fit-content; }
+footer.colophon .licenses h3 { margin: 12px 0 0; font-size: 13px; color: var(--ink-2); }
+footer.colophon .licenses pre { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 8px 10px; }
 
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: 8px 16px; border-radius: 999px; font-size: 14px; z-index: 20; }
 /* 網頁 App 的「有新版本」（第 13 版）：貼在畫面底下，避開 Home 指示條；按了才換版本 */
@@ -416,7 +420,7 @@ footer.colophon .legend2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-
   .zopts .fld select, .copybox { font-size: 16px; }
   .seg { height: 46px; } /* 外框各 1px，裡面的選項才有 44 */
   .check { min-height: 44px; }
-  .zopts summary { padding-block: 12px; }
+  .zopts summary, footer.colophon .licenses summary { padding-block: 12px; }
   .btn, .rd > h2 .btn, .btn.fold { height: 44px; }
   .chip2, .jump { min-height: 44px; }
   .chips.days .chip2 { min-width: 44px; }
@@ -504,6 +508,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .rt { min-width: 0; }
   /* 頁尾：算法說明很長，紙上只留標籤的意思和 print.js 填的那一行 */
   footer.colophon { margin-top: 10px; padding-top: 9px; gap: 3px; line-height: 1.45; }
-  footer.colophon p:not(.po) { display: none; }
+  footer.colophon p:not(.po), footer.colophon .licenses { display: none; }
   footer.colophon p.po { max-width: none; }
 }

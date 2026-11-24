@@ -88,8 +88,8 @@ const list = o => Object.entries(o).filter(([, v]) => v).map(([k]) => k).join('�
     ok(!body.includes('存 PDF') && !body.includes('另存為 PDF'), '片段的說明文字也不提列印');
     ok(a.errors.length === 0, `片段照常運作，無錯誤${a.errors.length ? '：' + a.errors.join(' | ') : ''}`);
     await a.ctx.close();
-    const sources = ['dist/paipan.html', 'dist/site/index.html'].map(f => fs.readFileSync(path.join(root, f), 'utf8'));
-    ok(sources.every(s => !s.includes('@SITE') && !s.includes('@/SITE')), '兩種成品裡都沒有留下建置用的 @SITE 標記');
+    const sources = ['dist/paipan.html', 'dist/site/index.html', 'dist/app/index.html'].map(f => fs.readFileSync(path.join(root, f), 'utf8'));
+    ok(sources.every(s => !/<!--@\/?(SITE|WEB|APP|LICENSES)-->/.test(s)), '三種成品裡都沒有留下建置用的區塊標記（@SITE、@WEB、@APP、@LICENSES）');
   }
 
   section('按鈕：印目前的分頁、兩個都印');

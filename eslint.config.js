@@ -12,7 +12,8 @@ const rules = {
 };
 
 export default [
-  { ignores: ['dist/**', 'node_modules/**'] },
+  // ios/ 裡的網頁是 npx cap sync 從 dist/app 複製過去的建置結果（App/public），和 Xcode 產生的檔案一樣不檢查
+  { ignores: ['dist/**', 'node_modules/**', 'ios/**'] },
   js.configs.recommended,
   { languageOptions: { ecmaVersion: 2022, sourceType: 'module' }, rules },
   { files: ['src/engine/**'], languageOptions: { globals: libs } },

@@ -1,0 +1,83 @@
+# iPhone、iPad App（第 14 版）的原生專案：在 GitHub 的 Mac 上用 Xcode 建置一次（給模擬器用、不簽名），確認 Swift 程式和專案設定編得過；
+# 再把 App 裝進 iPhone、iPad 模擬器打開、截圖（淺色、深色各一張），放在這次執行的 Artifacts 裡下載。
+# 只在動到 App 相關的檔時跑。簽名、封存、上傳 App Store 在自己的 Mac 上做（要開發者帳號），這裡不碰。
+# 各個 action 釘在確切的 commit（後面註明是哪一版），理由同 pages.yml。
+name: iOS App 建置
+on:
+  push:
+    paths:
+      - 'ios/**'
+      - 'src/**'
+      - 'scripts/build.js'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'src/**'
+      - 'scripts/build.js'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # 網頁（dist/app）→ 複製進 Xcode 專案（ios/App/App/public），並依 node_modules 寫好 Swift 套件的版本
+      - run: npm run build
+      - run: npx cap sync ios
+      - run: xcodebuild -version
+      - name: 建置給模擬器用的 App（不簽名）
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -n 80
+          test -d build/Build/Products/Debug-iphonesimulator/App.app
+      - name: 在 iPhone、iPad 模擬器上打開、截圖
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Debug-iphonesimulator/App.app
+          mkdir -p shots
+          # 挑最新的 iPhone Pro Max 與 13 吋 iPad Pro（App Store 截圖要的兩種尺寸）
+          pick() { xcrun simctl list devices available -j | node -e '
+            const all = Object.entries(JSON.parse(require("fs").readFileSync(0, "utf8")).devices)
+              .filter(([rt]) => /iOS/.test(rt)).flatMap(([, list]) => list).filter(d => new RegExp(process.argv[1]).test(d.name));
+            if (!all.length) process.exit(1);
+            console.log(all[all.length - 1].udid + "\t" + all[all.length - 1].name);' "$1"; }
+          for PATTERN in '^iPhone [0-9]+ Pro Max$' '^iPad Pro 13-inch'; do
+            IFS=$'\t' read -r UDID NAME < <(pick "$PATTERN")
+            echo "裝置：$NAME（$UDID）"
+            xcrun simctl boot "$UDID"
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
+            xcrun simctl install "$UDID" "$APP"
+            for LOOK in light dark; do
+              xcrun simctl ui "$UDID" appearance "$LOOK"
+              xcrun simctl launch --terminate-running-process "$UDID" io.github.willisxu.paipan
+              sleep 10
+              xcrun simctl io "$UDID" screenshot "shots/$NAME-$LOOK.png"
+            done
+            xcrun simctl shutdown "$UDID"
+          done
+          ls -l shots
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-screenshots
+          path: shots/

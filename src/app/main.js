@@ -15,7 +15,8 @@ import { initTextChart } from './text-chart.js';
 import { initReadingView } from './view-reading.js';
 import { initPrint } from './print.js';
 import { initPwa } from './pwa.js';
-import { initSaved, renderSaved } from './saved.js';
+import { initSaved, renderSaved, SAVED_KEY } from './saved.js';
+import { initPlatform } from './platform.js';
 import { initRun, run } from './run.js';
 
 function start() {
@@ -49,6 +50,8 @@ function start() {
   renderSaved();
   setTab(location.hash.slice(1));
   run();
+  // App 版：存起來的盤若被系統清掉，從原生那份補回來再重畫清單（網頁版什麼都不做）
+  initPlatform({ keys: [SAVED_KEY], restored: renderSaved });
 }
 
 start();

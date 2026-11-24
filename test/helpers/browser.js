@@ -63,7 +63,7 @@ export async function openPage(browser, harness, { context = {}, hash = '', init
    帶完整性雜湊的 <script> 在 file:// 底下不會執行，要走 HTTP 才是網站上真正的樣子。
    tamper：路徑 → 要接在檔案後面的內容，模擬檔案被換掉。回傳 { url, close }。 */
 export async function serveDir(dir, { tamper = {} } = {}) {
-  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.txt': 'text/plain; charset=utf-8' };
+  const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.txt': 'text/plain; charset=utf-8', '.css': 'text/css', '.woff2': 'font/woff2' };
   const server = http.createServer((req, res) => {
     const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/\/$/, '/index.html');
     const file = path.join(dir, rel);
@@ -76,7 +76,8 @@ export async function serveDir(dir, { tamper = {} } = {}) {
 }
 
 /* 開「放上網站的那一版」（serveDir 送出來的網址）。同一個來源的請求照常送，其餘外部請求一律擋掉並記在 external 裡，
-   測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定；init 也一樣，是頁面自己的腳本執行之前先在頁面裡跑的函式。
+   測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定；init 也一樣，是頁面自己的腳本執行之前先在頁面裡跑的函式
+   （要帶參數的寫成 [函式, 參數]）。
    網站版會註冊 service worker（第 13 版的網頁 App）：一般的測試把它擋掉（sw: false），每次開頁都直接向伺服器要檔案、彼此不互相影響；
    測網頁 App 的那一支（pwa.test.js）才打開。 */
 export async function openSite(browser, url, { context = {}, init = [], sw = false } = {}) {
@@ -92,7 +93,7 @@ export async function openSite(browser, url, { context = {}, init = [], sw = fal
     external.push(u);
     return route.abort();
   });
-  for (const fn of init) await page.addInitScript(fn);
+  for (const fn of init) await page.addInitScript(...[].concat(fn));
   await page.clock.setFixedTime(NOW);
   await page.goto(url);
   return { ctx, page, errors, external, responses };

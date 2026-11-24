@@ -4,7 +4,10 @@
    四個檔：
      apple-touch-icon.png 180×180  iPhone、iPad 主畫面用。滿版不透明、不畫圓角（系統會自己裁成圓角方形）
      icon-192.png、icon-512.png     一般用途（Android、桌機的安裝視窗）。圓角方形，四角透明
-     maskable-512.png               可裁切的圖示：滿版底色，字縮在中間 80% 的安全區裡（各家系統裁成圓形、方形都不會切到字） */
+     maskable-512.png               可裁切的圖示：滿版底色，字縮在中間 80% 的安全區裡（各家系統裁成圓形、方形都不會切到字）
+   另外一個給 iPhone、iPad App（第 14 版）：
+     ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png  1024×1024，滿版、不畫圓角（系統裁）。
+     App Store 規定這張不能有透明通道（見 assertOpaque） */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +24,16 @@ const ICONS = [
   { file: 'icon-192.png', size: 192, radius: 0.16, glyph: 0.64 },
   { file: 'icon-512.png', size: 512, radius: 0.16, glyph: 0.64 },
   { file: 'maskable-512.png', size: 512, radius: 0, glyph: 0.46 },
+  { file: 'AppIcon-512@2x.png', dir: path.join(root, 'ios', 'App', 'App', 'Assets.xcassets', 'AppIcon.appiconset'), size: 1024, radius: 0, glyph: 0.64, opaque: true },
 ];
+
+/* App Store 的圖示不能帶透明通道。不留背景透明時，Chromium 截出來就是 8 位元 RGB（色彩類型 2）的 PNG：
+   這裡只核對，不是的話停下來（例如換了 Playwright 版本，截圖格式變了），不要默默交出會被 App Store 退件的檔 */
+function assertOpaque(png, file) {
+  const ihdr = png.subarray(16, 29); // 簽章 8 位元組、IHDR 的長度與類型 8 位元組之後
+  if (png.toString('latin1', 12, 16) !== 'IHDR' || ihdr[8] !== 8 || ihdr[9] !== 2) throw new Error(`${file} 不是 8 位元 RGB（位元深度 ${ihdr[8]}、色彩類型 ${ihdr[9]}）：App Store 的圖示不能帶透明通道`);
+  return png;
+}
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });
@@ -40,7 +52,9 @@ for (const ic of ICONS) {
   const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: doc.nodeId, selector: 'div' });
   const used = (await cdp.send('CSS.getPlatformFontsForNode', { nodeId })).fonts.map(f => f.familyName).join('、');
   if (!/Noto Serif CJK/.test(used)) throw new Error(`「命」字用的是 ${used}，不是思源宋體。請在裝了 Noto Serif CJK 的環境產生圖示`);
-  await page.screenshot({ path: path.join(out, ic.file), omitBackground: ic.radius > 0, clip: { x: 0, y: 0, width: s, height: s } });
-  console.log(`已輸出 src/icons/${ic.file}（${s}×${s}，字型 ${used}）`);
+  const shot = await page.screenshot({ omitBackground: ic.radius > 0, clip: { x: 0, y: 0, width: s, height: s } });
+  const file = path.join(ic.dir || out, ic.file);
+  fs.writeFileSync(file, ic.opaque ? assertOpaque(shot, ic.file) : shot);
+  console.log(`已輸出 ${path.relative(root, file)}（${s}×${s}${ic.opaque ? '，不帶透明通道' : ''}，字型 ${used}）`);
 }
 await browser.close();

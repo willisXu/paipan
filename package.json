@@ -12,10 +12,14 @@
     "paipan": "node scripts/paipan.js"
   },
   "dependencies": {
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
+    "@fontsource/lxgw-wenkai-tc": "5.3.1",
     "iztro": "2.6.3",
     "lunar-javascript": "1.7.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.2",
     "@eslint/js": "9.39.5",
     "axe-core": "4.14.0",
     "esbuild": "0.28.2",

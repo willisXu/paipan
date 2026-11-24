@@ -1,7 +1,8 @@
 # 八字紫微排盤
 
 單頁排盤工具：同一份生辰排出子平八字與紫微斗數命盤，並照規則寫出八字的讀盤紀錄與紫微的星曜解讀（說的是傾向，不是判決）。
-可排的範圍是公曆 1900 到 2100 年。可以加到 iPhone、iPad 的主畫面當成 App 用，沒有網路也能排盤。
+可排的範圍是公曆 1900 到 2100 年。可以加到 iPhone、iPad 的主畫面當成 App 用，沒有網路也能排盤；
+另有包成 iPhone、iPad 原生 App 的版本（第 14 版，準備上架 App Store，見下面「iPhone、iPad App」）。
 
 線上版：https://willisxu.github.io/paipan/
 
@@ -10,7 +11,7 @@
 ```
 npm install            # 版本固定（package-lock.json）
 npx playwright install --only-shell chromium   # 瀏覽器測試用的 Chromium，裝一次就好
-npm run build          # 輸出 dist/site/index.html 與 dist/paipan.html
+npm run build          # 輸出 dist/site/、dist/app/ 與 dist/paipan.html
 npm run lint
 npm test               # 引擎測試，不需要瀏覽器，約 2 分鐘
 npm run test:browser   # build 後跑瀏覽器測試，約 4 分鐘
@@ -27,6 +28,8 @@ build 的輸出在 `dist/`，不進版本庫：
 - `dist/paipan.html`：同一個頁面的單檔版本，不含 `<html>`、`<head>` 外層，給會自己補外層的發布環境用；函式庫從 jsDelivr 載入。
   沒有列印按鈕：那種環境把頁面放在檢視框裡，開不了列印對話框。
   大部分瀏覽器測試測的是這個檔，`site.test.js`、`print.test.js` 測的是 `dist/site/`。
+- `dist/app/`：iPhone、iPad App 裡的網頁（`npx cap sync ios` 把它複製進 Xcode 專案）。和網站版同一份頁面，但完全不連網路
+  （函式庫、霞鶩文楷字型都放在裡面）、沒有 service worker；列印與存檔備份接到原生。`app.test.js` 測這一份。
 
 ## 發布
 
@@ -51,7 +54,38 @@ build 的輸出在 `dist/`，不進版本庫：
 
 做法：`dist/site/` 多了 `manifest.webmanifest`、`icons/`（`scripts/icons.js` 產生、提交在 `src/icons/`）與 `sw.js`（原始檔 `src/sw.js`）。
 建置時把預先快取的檔案清單和這些檔案內容的雜湊填進 `sw.js`：任何一個檔變了，`sw.js` 就跟著變，瀏覽器才會裝新版本；
-網站裡有檔案沒列進預先快取，建置會擋。頁面這一邊在 `src/app/pwa.js`。原生 App（Capacitor）的規劃見專案文件〈排盤工具-iOS與iPad版本規劃〉。
+網站裡有檔案沒列進預先快取，建置會擋。頁面這一邊在 `src/app/pwa.js`。
+
+## iPhone、iPad App（第 14 版，Capacitor）
+
+同一份網頁用 [Capacitor](https://capacitorjs.com/) 8 包成原生 App，準備上架 App Store。識別碼 `io.github.willisxu.paipan`，主畫面上叫「排盤」，
+iPhone、iPad 都支援，最低 iOS 16。原生專案在 `ios/`（提交進版本庫；`ios/App/App/public` 是複製過去的網頁，不提交）。
+
+```
+npm run build && npx cap sync ios    # 建網頁 dist/app → 複製進 ios/App/App/public，依 node_modules 寫好 Swift 套件的版本
+open ios/App/App.xcodeproj           # 在 Mac 上用 Xcode 26 開；第一次會下載 Capacitor 的 Swift 套件
+```
+
+在 Xcode 裡：選 App 這個 target → Signing & Capabilities → Team 選開發者帳號 → 選模擬器或接上的 iPhone、iPad 執行。
+上架：Product → Archive → Distribute App → App Store Connect。改了網頁要重跑上面兩行，Xcode 才會拿到新的 `public/`。
+
+和網頁版不同的地方：
+
+- **完全不連網路**：函式庫和網站版一樣放在一起；字型改帶霞鶩文楷 TC 的 400、700 兩個字重（照 Unicode 範圍切成小檔，用到才讀，約 9 MB），
+  內文用系統的蘋方；頁首有內容安全政策，只准載入 App 自己的檔案。沒有 manifest、service worker：新版本跟著 App 更新。
+- **列印**：WKWebView 不理會網頁的 `window.print()`，「列印／存 PDF」改開 iOS 的列印面板（面板裡也能分享、存成 PDF）。
+  iOS 的列印不讀 `@page`，邊界由原生給（12 mm）；「兩個都印」的記號等面板關掉才拿掉。
+- **存起來的盤另外留備份**：WKWebView 的 localStorage 在裝置空間不足時可能被系統清掉，存盤時原生那邊（UserDefaults）也存一份，
+  啟動時頁面那份不見了就補回來；兩邊不同以頁面為準。
+- 頁尾的列印說明換成 iOS 的版本，另外附開放原始碼授權（App 裡帶的程式與字型，條款原文；紙上不印）。
+- 底色、強調色跟著網頁：啟動畫面、網頁畫出來之前的底色是網頁的紙色（深色模式用深色的），系統元件（列印面板的按鈕）用網頁的茄紫。
+
+做法：頁面程式裡和平台有關的只有 `src/app/platform.js`（網頁版）一個檔；建置 `dist/app` 時整個換成 `platform-app.js`，
+它用 `@capacitor/core` 呼叫原生外掛 `PaipanApp`（`ios/App/App/PaipanAppPlugin.swift`：`printPage`、`getAll`、`setItem`）。
+外掛在 `PaipanViewController.swift` 註冊；`SceneDelegate.swift` 與 `Main.storyboard` 都指到這個畫面。
+App 圖示由 `scripts/icons.js` 一起產生（1024×1024、不帶透明通道）。隱私清單 `PrivacyInfo.xcprivacy`：不追蹤、不收集資料，
+用到 UserDefaults（理由 CA92.1）。推上 GitHub 時，動到 App 相關的檔會跑 `.github/workflows/ios.yml`：
+在 GitHub 的 Mac 上用 Xcode 建置（給模擬器、不簽名），裝進 iPhone、iPad 模擬器打開、截圖（淺色、深色），截圖放在那次執行的 Artifacts。
 
 ## 命令列
 
@@ -83,6 +117,7 @@ src/index.html      頁面骨架。兩個曆法函式庫從 jsDelivr 以 <script
 src/styles.css      樣式
 src/sw.js           網頁 App 的 service worker（只有網站版有；建置時填入預先快取清單與版本）
 src/icons/          主畫面圖示（scripts/icons.js 產生）
+src/licenses/       App 版附的授權條款裡，node_modules 沒有的兩份（Apache 2.0 全文、Apache Cordova 的 NOTICE）
 src/engine/         排盤引擎。純計算，不碰 DOM
   index.js            對外介面（只做匯出）。頁面與測試只能從這裡取用引擎
   ganzhi.js           干支基本表：五行陰陽、藏干、十神、十二長生、納音、空亡、旺相休囚死
@@ -104,10 +139,14 @@ src/app/            頁面程式
   print.js            列印的兩顆按鈕、紙上頁尾的那一行（版面在 styles.css 最後的 @media print）
   view-reading.js     讀盤與星曜解讀兩張卡：bzRecord()、zwNotes() 不碰 DOM，畫面與「複製」共用；收合、看讀盤
   pwa.js / fold.js    網頁 App（註冊 service worker、「有新版本」）；生辰資料收起
+  platform.js         和平台有關的幾件事（列印、存盤後的備份、啟動）。建置 App 版時換成 platform-app.js（接原生外掛）
   dom.js / format.js / places.js / tabs.js                    小工具、文字格式、地名表、分頁
-scripts/build.js    用 esbuild 打包 src/app/main.js，連同樣式內嵌進骨架；只有網站版才有的區塊（@SITE）在單檔版拿掉
+scripts/build.js    用 esbuild 打包 src/app/main.js，連同樣式內嵌進骨架，輸出三種成品；@SITE、@WEB、@APP 區塊照成品取捨
 scripts/paipan.js   命令列排盤：印出和「複製文字盤」相同的文字盤
-scripts/icons.js    產生主畫面圖示（用 Playwright 的 Chromium 畫，需要思源宋體）
+scripts/icons.js    產生主畫面圖示與 App 圖示（用 Playwright 的 Chromium 畫，需要思源宋體）
+capacitor.config.json  App 的識別碼、名稱、網頁在哪（dist/app）、WKWebView 的設定
+ios/                原生專案（Xcode）。自己寫的：App/App 裡的 PaipanViewController.swift、PaipanAppPlugin.swift、PrivacyInfo.xcprivacy；
+                    其餘是 Capacitor 的範本，改過的地方：Info.plist、兩個 storyboard、Assets（圖示、Paper 與 AccentColor 兩個顏色）、專案設定
 test/run.js         執行器：引擎測試平行跑，瀏覽器測試一次一支
 test/engine/        引擎驗算（獨立公式、對函式庫）、引擎輸出快照、結構檢查、命令列
 test/browser/       冒煙、表單、盤面與退路、讀盤、無障礙、網站版、列印、網頁 App、iPhone 與 iPad、亂點、畫面對引擎、命令列對畫面、畫面快照
@@ -129,8 +168,12 @@ test/snapshots/     兩個快照基準檔
 - **模組最上層不可有副作用**（不碰 DOM、不用函式庫）。CDN 掛掉時要能顯示錯誤訊息，而所有模組的最上層都比 `main.js` 的檢查早執行。
 - 相依方向：頁面 → 引擎的 `index.js`；引擎不認得頁面；不可有循環。以上三條由 `test/engine/structure.test.js` 檢查。
 - 深色配色在 `styles.css` 寫兩次（跟隨系統、使用者指定），兩段必須相同，`build.js` 會擋。兩段都包在 `@media screen` 裡：印出來一律是淺色。
-- **只有網站版才有的內容**，在 `src/index.html` 裡用 `<!--@SITE-->`、`<!--@/SITE-->` 各佔一行包起來（目前是列印按鈕和它的說明），
-  `build.js` 在單檔版整段拿掉。要開瀏覽器對話框、要下載檔案的功能，單檔版的檢視框做不到，一律放在這種區塊裡。
+- **只給某幾種成品的內容**，在 `src/index.html` 裡用成對的標記各佔一行包起來：`<!--@SITE-->` 網站版和 App 版都有（列印按鈕），
+  `<!--@WEB-->` 只有網站版（講瀏覽器列印的說明），`<!--@APP-->` 只有 App 版（iOS 列印面板的說明、資料存在哪裡、開放原始碼授權）。
+  單檔版三種都拿掉。要開瀏覽器對話框、要下載檔案的功能，單檔版的檢視框做不到，一律放在這種區塊裡。標記不可以套疊，`build.js` 會擋。
+- **和平台有關的只放在 `platform.js`**：網頁版與 App 版（`platform-app.js`）匯出同樣的名字；App 版是唯一可以 import 套件的頁面模組，
+  而且只能是 `@capacitor/core`。原生外掛的名稱與方法，Swift（`PaipanAppPlugin.swift`）和 `platform-app.js` 兩邊要對得上；
+  在 `ios/App/App/` 加了 Swift 檔要同時加進 Xcode 專案的編譯清單。`structure.test.js`、`native.test.js` 會擋。
 - **列印版面**寫在 `styles.css` 最後的 `@media print`。只在畫面上有意義的句子（教人怎麼點）加 `class="so"`，只印在紙上的加 `class="po"`。
   整頁的縮放比例和十二宮的列高是量出來的，目標是 A4 直式上八字兩頁、紫微本命盤連同所選宮位的說明一頁。
   動了版面，除了跑 `node test/run.js print`，要實際印成 PDF 看（`page.pdf()`），並多排幾張隨機的盤數頁數。
@@ -175,6 +218,8 @@ test/snapshots/     兩個快照基準檔
 | 列印 | 列印樣式下（A4、B5、A5 直式）版面有沒有超出紙、不該印的有沒有藏起來、深色模式印出來是不是淺色；印成 PDF 是幾頁；按鈕是不是只有網站版有 |
 | 網頁 App | manifest 與圖示；離線重新開能不能排盤；新版本裝好才提示、按了才換；發布平台的片段不註冊 service worker |
 | iPhone、iPad | 10 種寬度（含 iPad 分割畫面）的觸控螢幕：目標至少 44×44、欄位字至少 16px、整頁沒有橫向捲軸；生辰資料收起 |
+| App 的網頁 | `dist/app/` 有沒有任何對外請求、內容安全政策有沒有擋到東西、字型是不是自帶的；用假的原生橋測列印交給原生、面板開著時不收記號、存盤備份與補回、找不到外掛時的退路；頁尾的說明與授權條款 |
+| App 的原生專案 | 不用 Xcode 能擋的：識別碼、版本、最低 iOS、iPhone 與 iPad；Swift 檔都在編譯清單、專案檔的參照都有定義；外掛兩邊的名稱與方法；App 圖示 1024×1024 不帶透明通道；隱私清單；底色、強調色、列印邊界和網頁一致；Capacitor 各套件同版 |
 | 亂點 | 固定種子隨便填、隨便點幾百步，頁面會不會丟例外、盤面會不會壞掉 |
 | 畫面對引擎 | 隨機排幾十張盤、隨機點運限與宮位，畫面上每一格和引擎用同一組輸入算出來的結果逐項比對 |
 | 命令列 | 命令列印的文字盤和頁面「複製文字盤」是否逐字相同（本命盤、看今天、八字運限對畫面上標「今」的那幾格）；參數與錯誤訊息；`--at` 選到的運限另外算一次；換執行環境的時區輸出不變 |

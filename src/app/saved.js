@@ -1,4 +1,4 @@
-/* 存起來的盤（只存在這個瀏覽器的 localStorage）：讀回時的檢查、已存清單、載入、刪除、儲存。 */
+/* 存起來的盤（只存在這個瀏覽器的 localStorage；App 版另外在原生那邊留一份，見 platform-app.js）：讀回時的檢查、已存清單、載入、刪除、儲存。 */
 import { pad, resolveTime, ZW_OPTIONS } from '../engine/index.js';
 import { $, esc, showError, toast } from './dom.js';
 import { S } from './state.js';
@@ -6,8 +6,9 @@ import { PLACE } from './places.js';
 import { zwOptChanges } from './format.js';
 import { writeForm } from './form.js';
 import { run } from './run.js';
+import { HERE, mirror } from './platform.js';
 
-const KEY = 'paipan-saved-v1';
+export const SAVED_KEY = 'paipan-saved-v1'; // localStorage 的鍵（App 版的備份也用這個名字）
 const num = (v, lo, hi, int) => { const n = Number(v); return v !== null && v !== '' && Number.isFinite(n) && n >= lo && n <= hi && (!int || Number.isInteger(n)) ? n : null; };
 /* 讀回來的資料一律重新檢查：只留認得的欄位，格式不對、或引擎排不出來（日期不存在、超出範圍）的整筆不要。
    回傳整理好的一筆，不要的回傳 null；任何例外也當作不要，一筆壞資料不可以連累其他筆。 */
@@ -33,8 +34,8 @@ function check(s) {
   resolveTime({ ...o, ...PLACE.get(o.place) }); // 日期存不存在、年份在不在範圍內，以引擎為準；不行就丟出例外
   return o;
 }
-const loadSaved = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v.map(clean).filter(Boolean) : []; } catch (e) { return []; } };
-const storeSaved = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); return true; } catch (e) { return false; } };
+const loadSaved = () => { try { const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); return Array.isArray(v) ? v.map(clean).filter(Boolean) : []; } catch (e) { return []; } };
+const storeSaved = list => { try { const v = JSON.stringify(list); localStorage.setItem(SAVED_KEY, v); mirror(SAVED_KEY, v); return true; } catch (e) { return false; } };
 // 同一個生辰可以用不同的紫微流派設定各存一筆：改過的那幾項寫在後面，幾筆才分得出來（刪除鈕的名稱也用這一串）
 const labelOf = s => {
   const changed = zwOptChanges({ hua: s.zwHua, year: s.zwYear, leap: s.zwLeap });
@@ -59,6 +60,6 @@ export function initSaved() {
     const same = JSON.stringify(inp);
     const list = loadSaved().filter(s => JSON.stringify(s) !== same);
     list.unshift(inp);
-    if (storeSaved(list.slice(0, 20))) { renderSaved(); toast('已存在這個瀏覽器'); } else toast('這個瀏覽器不允許儲存');
+    if (storeSaved(list.slice(0, 20))) { renderSaved(); toast(`已存在${HERE}`); } else toast(`${HERE}不允許儲存`);
   });
 }

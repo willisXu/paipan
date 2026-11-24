@@ -2,6 +2,28 @@
 
 版次就是發布到線上的版次。
 
+## 第 14 版（還沒發布）iPhone、iPad App（準備上架 App Store）
+
+新增
+- 原生 App：同一份網頁用 Capacitor 8 包成 iPhone、iPad 的 App（識別碼 `io.github.willisxu.paipan`，主畫面上叫「排盤」，最低 iOS 16）。
+  App 完全不連網路：函式庫、霞鶩文楷字型都放在 App 裡，頁首有內容安全政策；不收集任何資料。
+- App 的列印改開 iOS 的列印面板（WKWebView 不理會網頁的列印），面板裡也能分享、存成 PDF；iPad 上從按下去的那顆按鈕旁邊彈出。
+- App 存起來的盤在原生那邊另外留一份備份：系統在空間不足時清掉網頁資料，下次打開會補回來。
+- App 的頁尾：列印說明換成 iOS 的版本、說明資料只存在裝置上，附開放原始碼授權（條款原文）。
+- App 圖示（1024×1024，和主畫面圖示同一個圖案）、啟動畫面（網頁的紙色，深色模式用深色）、隱私清單、加密申報。
+
+改善
+- 建置輸出三種成品；只給某幾種成品的內容分成 @SITE（網站版和 App）、@WEB（只有網站版）、@APP（只有 App）三種區塊。
+- 和平台有關的幾件事（列印、存盤後的備份、啟動）集中到 `src/app/platform.js`，App 版建置時換成 `platform-app.js`。
+  網站版、單檔版的行為不變（畫面快照 450 段、引擎快照 11,728 筆都相同）。
+
+測試
+- 新增 `app.test.js`（52 項）：App 的網頁不連網路、字型自帶、沒有 service worker；用假的原生橋測列印、存盤備份與補回、找不到外掛的退路；頁尾。
+- 新增 `native.test.js`（44 項）：不用 Xcode 檢查原生專案的設定（識別碼、版本、最低 iOS、編譯清單、外掛兩邊對得上、App 圖示、隱私清單、顏色與邊界和網頁一致）。
+- `structure.test.js`：platform-app.js 算在 platform.js 名下、兩份匯出同樣的名字、只有它能 import `@capacitor/core`；每一個流程檔的 action 都要釘 commit。
+- 新增 `.github/workflows/ios.yml`：在 GitHub 的 Mac 上建置 App、在 iPhone 與 iPad 模擬器上打開截圖。
+- 故意改壞 34 處（原生專案 15、App 的網頁 16、結構 3），全部被抓到。
+
 ## 第 13 版（2026-11-24）iPhone、iPad：網頁 App 與觸控版面
 
 新增
