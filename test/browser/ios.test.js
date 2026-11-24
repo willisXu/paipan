@@ -68,6 +68,24 @@ const audit = page => page.evaluate(() => {
     await ctx.close();
   }
 
+  section('狀態列底下鋪紙色、iOS 的日期與時間欄位（第 14 版在模擬器上看到的兩件事）');
+  {
+    // 瀏覽器模擬不了瀏海的安全區域（env() 是 0）：看這一條的樣式是不是固定在最上面、用紙色、蓋在內容上面、點得穿，紙上不印
+    const { ctx, page } = await openPage(browser, harness, { context: touch(402, 874) });
+    const cover = await page.evaluate(() => {
+      const c = getComputedStyle(document.body, '::before'), paper = getComputedStyle(document.body).backgroundColor;
+      return { pos: c.position, top: c.top, z: c.zIndex, events: c.pointerEvents, same: c.backgroundColor === paper, content: c.content };
+    });
+    ok(cover.pos === 'fixed' && cover.top === '0px' && Number(cover.z) > 0 && cover.events === 'none' && cover.same && cover.content === '""', `狀態列那一條：固定在最上面、紙色、在內容上面、點得穿：${JSON.stringify(cover)}`);
+    await page.emulateMedia({ media: 'print' });
+    eq(await page.evaluate(() => getComputedStyle(document.body, '::before').display), 'none', '印的時候不出現');
+    await ctx.close();
+    // 日期、時間欄位的修正只在 iOS 的 WebKit 生效（@supports (-webkit-touch-callout: none)），Chromium 沒有這個毛病也測不到：確認規則在、只對 iOS
+    const css = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'src', 'styles.css'), 'utf8');
+    const block = (css.match(/@supports \(-webkit-touch-callout: none\) \{([\s\S]*?)\n\}/) || [])[1] || '';
+    ok(/input\[type=date\], \.fld input\[type=time\] \{[^}]*appearance: none/.test(block) && /::-webkit-date-and-time-value[^{]*\{[^}]*text-align: left/.test(block), 'iOS 上日期、時間欄位改成一般外觀、內容靠左（在 iOS 模擬器上確認過不再撐出格子）');
+  }
+
   section('生辰資料可以收起');
   {
     const { ctx, page, errors } = await openPage(browser, harness, { context: touch(402, 874) });

@@ -38,6 +38,9 @@
 
 * { box-sizing: border-box; }
 body { background: var(--paper); color: var(--ink); font: 15px/1.6 var(--f-body); }
+/* 狀態列（瀏海、動態島那一條，安全區域的上緣）底下鋪一條紙色：App 和全螢幕的網頁 App 內容會延伸到狀態列底下，
+   不鋪的話往下捲時字會從時間、電量後面透出來（第 14 版在 iOS 模擬器上看到）。一般瀏覽器裡這個高度是 0，等於沒有 */
+body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: var(--paper); z-index: 15; pointer-events: none; }
 button, input, select, textarea { font: inherit; color: inherit; }
 .wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .wx-wood { color: var(--wood); } .wx-fire { color: var(--fire); } .wx-earth { color: var(--earth); } .wx-metal { color: var(--metal); } .wx-water { color: var(--water); }
@@ -69,6 +72,13 @@ main > *, .panel > *, .bz-top > *, .two > * { min-width: 0; }
 .fld input[type=text], .fld input[type=date], .fld input[type=time], .fld input[type=number], .fld select {
   width: 100%; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--field-line); border-radius: 7px; background: var(--paper);
   font-variant-numeric: tabular-nums;
+}
+/* iPhone、iPad 的 WebKit（Safari 與 App 都是）：日期、時間欄位用系統外觀時有自己的最小寬度，不理會 width:100%，
+   會撐出格子、被右邊切掉（第 14 版在 iOS 模擬器上看到；Chromium 沒有這個問題）。改成一般外觀：點了一樣跳出系統的選擇器，
+   內容靠左，和其他欄位一致。只套在 iOS（只有它認得 -webkit-touch-callout），桌面瀏覽器的日期欄位不受影響 */
+@supports (-webkit-touch-callout: none) {
+  .fld input[type=date], .fld input[type=time] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; }
+  .fld input[type=date]::-webkit-date-and-time-value, .fld input[type=time]::-webkit-date-and-time-value { text-align: left; min-width: 0; }
 }
 .fld .row { display: flex; gap: 6px; min-width: 0; }
 .fld .row > * { min-width: 0; }
@@ -509,5 +519,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   /* 頁尾：算法說明很長，紙上只留標籤的意思和 print.js 填的那一行 */
   footer.colophon { margin-top: 10px; padding-top: 9px; gap: 3px; line-height: 1.45; }
   footer.colophon p:not(.po), footer.colophon .licenses { display: none; }
+  body::before { display: none; }
   footer.colophon p.po { max-width: none; }
 }
