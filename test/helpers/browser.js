@@ -79,8 +79,10 @@ export async function serveDir(dir, { tamper = {} } = {}) {
    測試才能確認頁面沒有去連 CDN。時鐘和 openPage 一樣固定；init 也一樣，是頁面自己的腳本執行之前先在頁面裡跑的函式
    （要帶參數的寫成 [函式, 參數]）。
    網站版會註冊 service worker（第 13 版的網頁 App）：一般的測試把它擋掉（sw: false），每次開頁都直接向伺服器要檔案、彼此不互相影響；
-   測網頁 App 的那一支（pwa.test.js）才打開。 */
-export async function openSite(browser, url, { context = {}, init = [], sw = false } = {}) {
+   測網頁 App 的那一支（pwa.test.js）才打開。
+   帳號的測試（第 15 版，account.test.js）另外要：routes 是 [網址開頭, 處理函式] 的清單，符合的請求交給那個函式（放行本機的後端、
+   攔下 Apple 的登入頁），不算外部請求；before(page, ctx) 在開頁之前執行（例如 page.exposeFunction）。 */
+export async function openSite(browser, url, { context = {}, init = [], sw = false, routes = [], before } = {}) {
   const ctx = await browser.newContext({ ...DESKTOP, serviceWorkers: sw ? 'allow' : 'block', ...context });
   const page = await ctx.newPage();
   const errors = [], external = [], responses = [];
@@ -90,10 +92,13 @@ export async function openSite(browser, url, { context = {}, init = [], sw = fal
   await page.route('**/*', route => {
     const u = route.request().url();
     if (u.startsWith(url)) return route.continue();
+    const own = routes.find(([prefix]) => u.startsWith(prefix));
+    if (own) return own[1](route);
     external.push(u);
     return route.abort();
   });
   for (const fn of init) await page.addInitScript(...[].concat(fn));
+  if (before) await before(page, ctx);
   await page.clock.setFixedTime(NOW);
   await page.goto(url);
   return { ctx, page, errors, external, responses };

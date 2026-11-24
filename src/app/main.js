@@ -17,6 +17,7 @@ import { initPrint } from './print.js';
 import { initPwa } from './pwa.js';
 import { initSaved, renderSaved, SAVED_KEY } from './saved.js';
 import { initPlatform } from './platform.js';
+import { initAccount, startAccount, SYNC_KEY } from './account.js';
 import { initRun, run } from './run.js';
 
 function start() {
@@ -44,14 +45,16 @@ function start() {
   initPrint();
   initPwa();
   initSaved();
+  initAccount(); // 帳號（第 15 版）：網頁版從 Apple 登入回來時，結果接在網址 # 後面，要在下面 setTab 讀網址之前收走
   initRun();
 
   writeForm(SAMPLE);
   renderSaved();
   setTab(location.hash.slice(1));
   run();
-  // App 版：存起來的盤若被系統清掉，從原生那份補回來再重畫清單（網頁版什麼都不做）
-  initPlatform({ keys: [SAVED_KEY], restored: renderSaved });
+  // App 版：存起來的盤（和同步的紀錄）若被系統清掉，從原生那份補回來再重畫清單（網頁版什麼都不做）。
+  // 補完才讀登入狀態、開始同步：不然被清掉的盤會被當成使用者刪掉的
+  startAccount(initPlatform({ keys: [SAVED_KEY, SYNC_KEY], restored: renderSaved }));
 }
 
 start();

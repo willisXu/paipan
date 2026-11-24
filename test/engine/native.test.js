@@ -3,7 +3,8 @@
    - 識別碼、版本、最低支援的 iOS 版本、iPhone 與 iPad 都支援，各處寫的要一致
    - 自己寫的 Swift 檔都有編進 App、隱私清單有放進 App；專案檔裡每個參照都找得到對象
    - 原生外掛和網頁兩邊的名稱、方法對得上；畫面（SceneDelegate、Main.storyboard）指到會註冊外掛的那個類別
-   - 上架的規定：App 圖示 1024×1024 不帶透明通道、加密的申報、隱私清單（用到 UserDefaults 要寫理由）
+   - 上架的規定：App 圖示 1024×1024 不帶透明通道、加密的申報、隱私清單（用到 UserDefaults 要寫理由；第 15 版起申報帳號的兩種資料）
+   - 使用 Apple 登入（第 15 版）：entitlements 有設、專案指到它；不要姓名與電子郵件、nonce 交 SHA-256；憑證放鑰匙圈、只限這台裝置
    - 和網頁一致的地方：啟動畫面與網頁畫出來前的底色是網頁的紙色、系統元件的強調色是網頁的茄紫（各有深色版）、列印邊界照 @page
    - Capacitor 三個套件與 Swift 套件的版本相同 */
 import fs from 'node:fs';
@@ -46,7 +47,7 @@ section('Info.plist：方向、語言、上架的申報');
 {
   eq(info['UISupportedInterfaceOrientations~ipad'].slice().sort(), ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight', 'UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown'], 'iPad 四個方向都支援（iPad 分割畫面、多工的前提）');
   ok(info.UISupportedInterfaceOrientations.includes('UIInterfaceOrientationPortrait'), 'iPhone 支援直向');
-  ok(info.ITSAppUsesNonExemptEncryption === false, '申報沒有使用需要報備的加密（App 不連網路），上傳後不必每次回答出口合規問題');
+  ok(info.ITSAppUsesNonExemptEncryption === false, '申報沒有使用需要報備的加密（只連自己的後端，用系統的 HTTPS；不另外做加密），上傳後不必每次回答出口合規問題');
   ok(info.CFBundleDevelopmentRegion === 'zh-Hant' && info.CFBundleLocalizations?.includes('zh-Hant') && info.CFBundleAllowMixedLocalizations === true, 'App 的語言是繁體中文；系統元件（列印面板、選取文字的選單）跟著使用者的語言');
   eq(info.UIRequiredDeviceCapabilities, ['arm64'], '需要的硬體只寫 arm64（範本裡過時的 armv7 換掉）');
   ok(info.UILaunchStoryboardName === 'LaunchScreen', '啟動畫面用 LaunchScreen.storyboard');
@@ -96,11 +97,35 @@ section('上架的規定：App 圖示、隱私清單');
   ok(png.subarray(1, 4).toString() === 'PNG' && png.readUInt32BE(16) === 1024 && png.readUInt32BE(20) === 1024, `App 圖示是 1024×1024 的 PNG（${entry?.filename}）`);
   ok(png.toString('latin1', 12, 16) === 'IHDR' && png[24] === 8 && png[25] === 2, `App 圖示不帶透明通道（8 位元 RGB；App Store 會退件帶透明通道的）：色彩類型 ${png[25]}`);
   ok(!fs.existsSync(path.join(root, APP, 'Assets.xcassets', 'Splash.imageset')), '範本的啟動圖（Capacitor 的標誌）拿掉了');
-  ok(privacy.NSPrivacyTracking === false && privacy.NSPrivacyTrackingDomains.length === 0 && privacy.NSPrivacyCollectedDataTypes.length === 0, '隱私清單：不追蹤、不收集任何資料');
+  ok(privacy.NSPrivacyTracking === false && privacy.NSPrivacyTrackingDomains.length === 0, '隱私清單：不追蹤、沒有追蹤用的網域');
+  // 第 15 版：用 Apple 登入後，後端存 Apple 給的使用者代號和已存的盤。和 App Store Connect 的「App 隱私權」問卷要填的一致：
+  // 使用者 ID、其他使用者內容，兩者都和身分連結、不用來追蹤、只為了 App 的功能
+  const collected = privacy.NSPrivacyCollectedDataTypes;
+  eq(collected.map(c => c.NSPrivacyCollectedDataType), ['NSPrivacyCollectedDataTypeUserID', 'NSPrivacyCollectedDataTypeOtherUserContent'], '隱私清單申報收集的資料：使用者 ID（Apple 給的代號）、其他使用者內容（已存的盤）');
+  ok(collected.every(c => c.NSPrivacyCollectedDataTypeLinked === true && c.NSPrivacyCollectedDataTypeTracking === false && JSON.stringify(c.NSPrivacyCollectedDataTypePurposes) === '["NSPrivacyCollectedDataTypePurposeAppFunctionality"]'), '兩種都申報為：和身分連結、不追蹤、用途只有 App 的功能');
   const usesDefaults = Object.values(swift).some(s => s.includes('UserDefaults'));
   const reasons = (privacy.NSPrivacyAccessedAPITypes.find(t => t.NSPrivacyAccessedAPIType === 'NSPrivacyAccessedAPICategoryUserDefaults') || {}).NSPrivacyAccessedAPITypeReasons || [];
   ok(usesDefaults && reasons.length === 1 && reasons[0] === 'CA92.1', `用了 UserDefaults（存盤的備份），隱私清單寫了理由 CA92.1（只讀寫 App 自己的資料）：${reasons.join('、')}`);
   eq(privacy.NSPrivacyAccessedAPITypes.map(t => t.NSPrivacyAccessedAPIType), ['NSPrivacyAccessedAPICategoryUserDefaults'], '沒有用到、也沒有申報其他需要理由的 API');
+}
+
+section('使用 Apple 登入（第 15 版）：entitlements、登入的請求、鑰匙圈');
+{
+  const plugin = swift['PaipanAppPlugin.swift'];
+  const ent = parsePlist(read(`${APP}/App.entitlements`));
+  eq(ent, { 'com.apple.developer.applesignin': ['Default'] }, 'App.entitlements 只開「使用 Apple 登入」（Xcode 的自動簽署會照這份替 App ID 開權限）');
+  eq(settings('CODE_SIGN_ENTITLEMENTS'), ['App/App.entitlements', 'App/App.entitlements'], 'Debug、Release 都指到這份 entitlements');
+  ok(/\b([0-9A-F]{24}) \/\* App\.entitlements \*\/ = \{isa = PBXFileReference; lastKnownFileType = text\.plist\.entitlements; path = App\.entitlements;/.test(pbx) && !phase('Resources').includes('App.entitlements'), '專案裡看得到這個檔，但不複製進 App（entitlements 是簽署用的，不是資源）');
+  ok(/request\.requestedScopes = \[\]/.test(plugin), '登入不要求姓名與電子郵件（requestedScopes 是空的）');
+  ok(/request\.nonce = SHA256\.hash\(data: Data\(nonce\.utf8\)\)\.map \{ String\(format: "%02x", \$0\) \}\.joined\(\)/.test(plugin), '交給 Apple 的 nonce 是 SHA-256 的十六進位小寫（後端照這個比對）');
+  ok(/ASAuthorizationError, authError\.code == \.canceled[\s\S]{0,80}call\.reject\("已取消", "canceled"\)/.test(plugin) && read('src/app/account.js').includes("e.code !== 'canceled'"), '使用者按取消：原生回 canceled，網頁不跳錯誤');
+  ok(plugin.includes('kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly') && plugin.includes('kSecClassGenericPassword'), '登入憑證放鑰匙圈：一般密碼項目，只限這台裝置（不進 iCloud 鑰匙圈、不跟著備份到別台）');
+  ok(/private func forgetIfReinstalled\(\)[\s\S]*?SecItemDelete/.test(plugin) && (plugin.match(/forgetIfReinstalled\(\)$/gm) || []).length === 2, '刪掉 App 再裝回來：第一次讀寫鑰匙圈前先清掉舊的憑證（鑰匙圈不會跟著 App 刪掉）');
+  ok(/if let value = call\.getString\("value"\) \{\s*values\[key\] = value\s*\} else \{\s*values\.removeValue\(forKey: key\)/.test(plugin), '備份的 setItem 收到 null 就刪掉那一格（登出後，同步紀錄不會在下次開 App 時被補回來）');
+  const states = [...plugin.matchAll(/case \.(\w+): call\.resolve\(\["state": "(\w+)"\]\)/g)].map(m => `${m[1]}=${m[2]}`);
+  eq(states, ['authorized=authorized', 'revoked=revoked', 'notFound=notFound', 'transferred=transferred'], 'Apple 那邊的授權狀態照原名傳給網頁');
+  const js = read('src/app/account.js');
+  ok(js.includes("st !== 'revoked' && st !== 'notFound'"), '網頁在 revoked、notFound 時登出（問不到的 unknown 不動）');
 }
 
 section('和網頁一致：底色、強調色、列印邊界');

@@ -3,6 +3,7 @@
 單頁排盤工具：同一份生辰排出子平八字與紫微斗數命盤，並照規則寫出八字的讀盤紀錄與紫微的星曜解讀（說的是傾向，不是判決）。
 可排的範圍是公曆 1900 到 2100 年。可以加到 iPhone、iPad 的主畫面當成 App 用，沒有網路也能排盤；
 另有包成 iPhone、iPad 原生 App 的版本（第 14 版，準備上架 App Store，見下面「iPhone、iPad App」）。
+可以選擇用 Apple 登入，在 iPhone、iPad 與網頁之間同步已存的盤（第 15 版，見下面「帳號與同步」）；不登入一切照舊。
 
 線上版：https://willisxu.github.io/paipan/
 
@@ -28,8 +29,8 @@ build 的輸出在 `dist/`，不進版本庫：
 - `dist/paipan.html`：同一個頁面的單檔版本，不含 `<html>`、`<head>` 外層，給會自己補外層的發布環境用；函式庫從 jsDelivr 載入。
   沒有列印按鈕：那種環境把頁面放在檢視框裡，開不了列印對話框。
   大部分瀏覽器測試測的是這個檔，`site.test.js`、`print.test.js` 測的是 `dist/site/`。
-- `dist/app/`：iPhone、iPad App 裡的網頁（`npx cap sync ios` 把它複製進 Xcode 專案）。和網站版同一份頁面，但完全不連網路
-  （函式庫、霞鶩文楷字型都放在裡面）、沒有 service worker；列印與存檔備份接到原生。`app.test.js` 測這一份。
+- `dist/app/`：iPhone、iPad App 裡的網頁（`npx cap sync ios` 把它複製進 Xcode 專案）。和網站版同一份頁面，但不連網路
+  （函式庫、霞鶩文楷字型都放在裡面；登入後只連帳號的後端）、沒有 service worker；列印、存檔備份、Apple 登入接到原生。`app.test.js` 測這一份。
 
 ## 發布
 
@@ -71,8 +72,8 @@ open ios/App/App.xcodeproj           # 在 Mac 上用 Xcode 26 開；第一次�
 
 和網頁版不同的地方：
 
-- **完全不連網路**：函式庫和網站版一樣放在一起；字型改帶霞鶩文楷 TC 的 400、700 兩個字重（照 Unicode 範圍切成小檔，用到才讀，約 9 MB），
-  內文用系統的蘋方；頁首有內容安全政策，只准載入 App 自己的檔案。沒有 manifest、service worker：新版本跟著 App 更新。
+- **不連網路**：函式庫和網站版一樣放在一起；字型改帶霞鶩文楷 TC 的 400、700 兩個字重（照 Unicode 範圍切成小檔，用到才讀，約 9 MB），
+  內文用系統的蘋方；頁首有內容安全政策，只准載入 App 自己的檔案、只准連帳號的後端（第 15 版，登入後才連）。沒有 manifest、service worker：新版本跟著 App 更新。
 - **列印**：WKWebView 不理會網頁的 `window.print()`，「列印／存 PDF」改開 iOS 的列印面板（面板裡也能分享、存成 PDF）。
   iOS 的列印不讀 `@page`，邊界由原生給（12 mm）；「兩個都印」的記號等面板關掉才拿掉。
 - **存起來的盤另外留備份**：WKWebView 的 localStorage 在裝置空間不足時可能被系統清掉，存盤時原生那邊（UserDefaults）也存一份，
@@ -81,11 +82,32 @@ open ios/App/App.xcodeproj           # 在 Mac 上用 Xcode 26 開；第一次�
 - 底色、強調色跟著網頁：啟動畫面、網頁畫出來之前的底色是網頁的紙色（深色模式用深色的），系統元件（列印面板的按鈕）用網頁的茄紫。
 
 做法：頁面程式裡和平台有關的只有 `src/app/platform.js`（網頁版）一個檔；建置 `dist/app` 時整個換成 `platform-app.js`，
-它用 `@capacitor/core` 呼叫原生外掛 `PaipanApp`（`ios/App/App/PaipanAppPlugin.swift`：`printPage`、`getAll`、`setItem`）。
+它用 `@capacitor/core` 呼叫原生外掛 `PaipanApp`（`ios/App/App/PaipanAppPlugin.swift`：`printPage`、`getAll`、`setItem`；
+第 15 版加上 `signInWithApple`、`appleCredentialState`、鑰匙圈的 `getSecret`、`setSecret`、`clearSecret`）。
 外掛在 `PaipanViewController.swift` 註冊；`SceneDelegate.swift` 與 `Main.storyboard` 都指到這個畫面。
-App 圖示由 `scripts/icons.js` 一起產生（1024×1024、不帶透明通道）。隱私清單 `PrivacyInfo.xcprivacy`：不追蹤、不收集資料，
-用到 UserDefaults（理由 CA92.1）。推上 GitHub 時，動到 App 相關的檔會跑 `.github/workflows/ios.yml`：
+App 圖示由 `scripts/icons.js` 一起產生（1024×1024、不帶透明通道）。隱私清單 `PrivacyInfo.xcprivacy`：不追蹤；
+第 15 版起申報登入後收集的使用者 ID 與其他使用者內容（已存的盤）；用到 UserDefaults（理由 CA92.1）。
+`App.entitlements` 開「使用 Apple 登入」（個人團隊不支援這個權限，要付費的開發者團隊）。推上 GitHub 時，動到 App 相關的檔會跑 `.github/workflows/ios.yml`：
 在 GitHub 的 Mac 上用 Xcode 建置（給模擬器、不簽名），裝進 iPhone、iPad 模擬器打開、截圖（淺色、深色），截圖放在那次執行的 Artifacts。
+
+## 帳號與同步（第 15 版）
+
+用 Apple 登入後，已存的盤在 iPhone、iPad 與網頁之間同步。登入是選用的：不登入時一切照舊，App 不連網路。
+不要姓名、電子郵件；後端只存 Apple 給的帳號代號與已存的盤。App 與網頁裡都能登出、刪除帳號（App Store 要求在 App 裡能刪帳號）。
+
+- **後端** `server/`：Cloudflare Workers ＋ D1。部署步驟、要在 Apple 開發者網站建的東西（Services ID、金鑰、伺服器通知網址）、
+  祕密的設定寫在 `server/README.md`。
+- **開關** `account.config.json`：`apiBase` 是後端的網址。空字串時這一版沒有帳號功能：頁面上沒有登入那一塊（`index.html` 的 @SYNC 區塊拿掉、
+  留 @LOCAL），頁尾、隱私權政策、支援頁用「不收集任何資料」那一版，App 的內容安全政策不開任何對外連線。
+- **登入**：網頁走 Apple 的網頁登入（整頁換到 appleid.apple.com，結果接在網址 # 後面帶回來，不載入 Apple 的 JavaScript）；
+  App 走 iOS 原生的面板。兩邊都先向後端拿一次性的 nonce，交給 Apple 的是它的 SHA-256，後端比對身分權杖裡的 nonce，確定是這一次的登入。
+  登入憑證網頁放 localStorage、App 放鑰匙圈。
+- **同步**（`src/app/account.js`、`saved-data.js`）：整份清單對整份清單。記住上次同步完雙方一致的那份，和這台現在的、雲端現在的三方合併：
+  這台新存的加進去、這台刪的拿掉、其餘照雲端。寫回時帶版本號，被別台裝置搶先就重新讀、重新合併。存、刪之後一會兒自動同步，
+  打開頁面、連上網路、回到 App 時也同步；離線時照常存，連上網路再同步。第一次登入時，這台原本存的盤併進帳號。
+- **離開帳號**：登出、刪除帳號、在 Apple 那邊停用（App 回到前景時問系統；後端收到 Apple 的通知）時，帳號的盤從這台移除，還沒上傳的留著；
+  登入失效只回到未登入，盤留著。
+- 已存清單的上限從 20 改成 100（幾台裝置的盤合在一起），多於 13 個時先列 12 個，其餘收在「全部 N 個」後面。
 
 ## 命令列
 
@@ -135,23 +157,28 @@ src/app/            頁面程式
   main.js             進入點：檢查函式庫 → 依序初始化 → 畫第一張盤
   run.js              讀表單 → 呼叫引擎 → 更新狀態 → 重畫
   state.js            共用狀態、「今年」與「今天」
-  form.js / saved.js  表單讀寫（inputFrom() 不碰 DOM，命令列共用）；存在瀏覽器的盤
+  form.js / saved.js  表單讀寫（inputFrom() 不碰 DOM，命令列共用）；已存清單
+  saved-data.js       已存的盤的資料本身：讀回時的檢查、上限、同步的三方合併（不碰 DOM）
+  account.js          帳號與同步（第 15 版）：用 Apple 登入、登出、刪除帳號、同步
   summary.js / view-bazi.js / view-ziwei.js / text-chart.js   各區塊的繪製
   print.js            列印的兩顆按鈕、紙上頁尾的那一行（版面在 styles.css 最後的 @media print）
   view-reading.js     讀盤與星曜解讀兩張卡：bzRecord()、zwNotes() 不碰 DOM，畫面與「複製」共用；收合、看讀盤
   pwa.js / fold.js    網頁 App（註冊 service worker、「有新版本」）；生辰資料收起
-  platform.js         和平台有關的幾件事（列印、存盤後的備份、啟動）。建置 App 版時換成 platform-app.js（接原生外掛）
+  platform.js         和平台有關的幾件事（列印、存盤後的備份、啟動、Apple 登入、登入憑證放哪裡）。建置 App 版時換成 platform-app.js（接原生外掛）
   dom.js / format.js / places.js / tabs.js                    小工具、文字格式、地名表、分頁
-scripts/build.js    用 esbuild 打包 src/app/main.js，連同樣式內嵌進骨架，輸出三種成品；@SITE、@WEB、@APP 區塊照成品取捨
+scripts/build.js    用 esbuild 打包 src/app/main.js，連同樣式內嵌進骨架，輸出三種成品；@SITE、@WEB、@APP、@SYNC、@LOCAL 區塊照成品取捨
+scripts/account.js  讀 account.config.json（帳號功能的開關與後端網址），產生頁首的 <meta>
+account.config.json 帳號的後端網址、網站登入用的 Services ID 與 redirect 網址
+server/             帳號與同步的後端（Cloudflare Workers ＋ D1），見 server/README.md
 scripts/paipan.js   命令列排盤：印出和「複製文字盤」相同的文字盤
 scripts/icons.js    產生主畫面圖示與 App 圖示（用 Playwright 的 Chromium 畫，需要思源宋體）
 capacitor.config.json  App 的識別碼、名稱、網頁在哪（dist/app）、WKWebView 的設定
-ios/                原生專案（Xcode）。自己寫的：App/App 裡的 PaipanViewController.swift、PaipanAppPlugin.swift、PrivacyInfo.xcprivacy；
+ios/                原生專案（Xcode）。自己寫的：App/App 裡的 PaipanViewController.swift、PaipanAppPlugin.swift、PrivacyInfo.xcprivacy、App.entitlements；
                     其餘是 Capacitor 的範本，改過的地方：Info.plist、兩個 storyboard、Assets（圖示、Paper 與 AccentColor 兩個顏色）、專案設定
 test/run.js         執行器：引擎測試平行跑，瀏覽器測試一次一支
 test/engine/        引擎驗算（獨立公式、對函式庫）、引擎輸出快照、結構檢查、命令列
 test/browser/       冒煙、表單、盤面與退路、讀盤、無障礙、網站版、列印、網頁 App、iPhone 與 iPad、亂點、畫面對引擎、命令列對畫面、畫面快照
-test/helpers/       共用：斷言、亂數、載入函式庫、瀏覽器
+test/helpers/       共用：斷言、亂數、載入函式庫、瀏覽器；後端的測試情境、假的 Apple、在 Node 模擬的 D1
 test/snapshots/     兩個快照基準檔
 ```
 
@@ -221,6 +248,9 @@ test/snapshots/     兩個快照基準檔
 | iPhone、iPad | 10 種寬度（含 iPad 分割畫面）的觸控螢幕：目標至少 44×44、欄位字至少 16px、整頁沒有橫向捲軸；生辰資料收起 |
 | App 的網頁 | `dist/app/` 有沒有任何對外請求、內容安全政策有沒有擋到東西、字型是不是自帶的；用假的原生橋測列印交給原生、面板開著時不收記號、存盤備份與補回、找不到外掛時的退路；頁尾的說明與授權條款 |
 | App 的原生專案 | 不用 Xcode 能擋的：識別碼、版本、最低 iOS、iPhone 與 iPad；Swift 檔都在編譯清單、專案檔的參照都有定義；外掛兩邊的名稱與方法；App 圖示 1024×1024 不帶透明通道；隱私清單；底色、強調色、列印邊界和網頁一致；Capacitor 各套件同版 |
+| 帳號的後端 | `server/` 在 Node 跑（D1 換成 node:sqlite、Apple 換成假的）：nonce 只能用一次、各種不該通過的身分權杖、跨來源只認網站和 App、版本號擋住互相覆蓋、欄位與大小的限制、登出只登出一台、Apple 的通知刪資料、刪帳號時撤銷 Apple 授權、憑證效期、清理排程；同一套情境在 `server/` 裡 `npm test` 用 Cloudflare 的執行環境再跑一次 |
+| 同步的合併 | 寫明的情況；隨機兩萬組的性質（新存的在、刪的不在、雲端其餘的在、不多不重複）；模擬三台裝置隨機存、刪、同步，最後三台和雲端一致 |
+| 帳號（頁面） | 真的後端程式在本機跑、假的 Apple 登入頁：網頁版登入的參數與帶回來的結果、第一次登入併進帳號、兩台裝置之間存刪同步、兩台都離線各改各的再合起來、state 不符與取消、登出、登入失效、刪除帳號；App 版用假的原生橋測原生登入、鑰匙圈、在 Apple 那邊停用 |
 | 亂點 | 固定種子隨便填、隨便點幾百步，頁面會不會丟例外、盤面會不會壞掉 |
 | 畫面對引擎 | 隨機排幾十張盤、隨機點運限與宮位，畫面上每一格和引擎用同一組輸入算出來的結果逐項比對 |
 | 命令列 | 命令列印的文字盤和頁面「複製文字盤」是否逐字相同（本命盤、看今天、八字運限對畫面上標「今」的那幾格）；參數與錯誤訊息；`--at` 選到的運限另外算一次；換執行環境的時區輸出不變 |

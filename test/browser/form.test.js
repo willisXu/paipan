@@ -193,12 +193,26 @@ const STALE_NOTE = '下方變淡的是上一次排出的盤，修正後才會更
     await page.locator('#saved [data-load="1"]').click();
     await page.locator('#save').click();
     ok(same(await savedLabels(page), ['未命名 · 農曆 2023/閏2/10 23:30', '大月 · 農曆 2023/2/30 23:30']), '清單裡已經有的再存一次：移到最前面，不會多出一筆');
-    await page.evaluate(() => localStorage.setItem('paipan-saved-v1', JSON.stringify(Array.from({ length: 20 }, (_, k) => ({ name: '第' + k, gender: '男', calendar: 'solar', y: 1990, m: 1, d: 1 + k, h: 10, mi: 0, place: '台北', clock: 'auto', useTST: false, ziRule: 'next' })))));
+    // 第 15 版：上限 100（登入後幾台裝置的盤合在一起）；多於 13 個時先列 12 個，其餘收在「全部 N 個」後面
+    await page.evaluate(() => localStorage.setItem('paipan-saved-v1', JSON.stringify(Array.from({ length: 100 }, (_, k) => ({ name: '第' + k, gender: '男', calendar: 'solar', y: 1990, m: 1 + Math.floor(k / 28), d: 1 + (k % 28), h: 10, mi: 0, place: '台北', clock: 'auto', useTST: false, ziRule: 'next' })))));
     await page.reload();
+    const more = page.locator('#saved [data-more]');
+    ok((await savedLabels(page)).length === 12 && await more.innerText() === '全部 100 個' && await more.getAttribute('aria-expanded') === 'false', '100 個盤：先列 12 個，其餘收在「全部 100 個」後面');
+    await more.click();
     const full = await savedLabels(page);
+    ok(full.length === 100 && await more.innerText() === '收起' && await more.getAttribute('aria-expanded') === 'true' && await page.evaluate(() => document.activeElement?.dataset.more !== undefined), '按「全部 100 個」：列出全部，按鈕變成「收起」，焦點留在按鈕上');
+    await page.locator('#saved [data-del="99"]').click();
+    ok((await savedLabels(page)).length === 99 && !(await savedLabels(page)).includes('第99 · 1990/4/16 10:00'), '展開時刪最後一個：刪的就是那一個（按鈕的編號和清單一致）');
+    await page.locator('#save').click();
     await page.locator('#save').click();
     const capped = await savedLabels(page);
-    ok(full.length === 20 && capped.length === 20 && capped[0] === '未命名 · 1984/11/20 14:00' && capped[19] === '第18 · 1990/1/19 10:00', '最多留 20 筆：新存的排最前面，最舊的一筆被擠掉');
+    ok(full.length === 100 && capped.length === 100 && capped[0] === '未命名 · 1984/11/20 14:00' && capped[99] === '第98 · 1990/4/15 10:00', '最多留 100 筆：新存的排最前面，同一個再存不會多一筆');
+    await page.locator('#nm').fill('新的'); await page.locator('#nm').dispatchEvent('change');
+    await page.locator('#save').click();
+    const after = await savedLabels(page);
+    ok(after.length === 100 && after[0].startsWith('新的 · ') && after[1] === '未命名 · 1984/11/20 14:00' && !after.includes('第98 · 1990/4/15 10:00'), '滿 100 筆再存一個新的：新存的排最前面，最舊的一筆被擠掉');
+    await more.click();
+    ok((await savedLabels(page)).length === 12, '按「收起」：回到只列 12 個');
     ok(errors.length === 0, '存檔流程無錯誤：' + errors.join(' | '));
     await ctx.close();
   }

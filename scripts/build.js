@@ -2,13 +2,14 @@
    用 esbuild 把 src/app/main.js 連同它 import 的引擎、介面模組打包成一段腳本，和 src/styles.css 一起內嵌進 src/index.html，輸出三種成品：
      dist/paipan.html     單一檔案的頁面片段，外層骨架由發布平台補；函式庫從 CDN 載入；沒有列印按鈕（平台的檢視框不能列印）
      dist/site/           可以直接放上網站的完整網頁（GitHub Pages 用）；函式庫和網頁放在一起，不靠 CDN；有列印按鈕
-     dist/app/            iPhone、iPad App 裡的網頁（第 14 版，npx cap sync ios 複製進 Xcode 專案）；完全不連網路，字型自帶；列印、存檔備份接到原生 */
+     dist/app/            iPhone、iPad App 裡的網頁（第 14 版，npx cap sync ios 複製進 Xcode 專案）；只連帳號的後端（有設的話，第 15 版），字型自帶；列印、存檔備份、Apple 登入接到原生 */
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
+import { readAccountConfig, accountMeta } from './account.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -18,6 +19,12 @@ const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 // 否則測試驗的和使用者實際跑的就不是同一份程式
 const deps = JSON.parse(read('package.json')).dependencies;
 const page = read('src/index.html');
+// 帳號與同步（第 15 版）：有設後端網址才啟用（見 scripts/account.js）。
+// 兩個環境變數只給瀏覽器測試用（test/browser/account.test.js）：PAIPAN_ACCOUNT_CONFIG 換一份設定（可以指到本機的後端），
+// PAIPAN_OUT 輸出到別的資料夾，不動 dist/
+const account = readAccountConfig(root, process.env.PAIPAN_ACCOUNT_CONFIG);
+const dist = process.env.PAIPAN_OUT ? path.resolve(process.env.PAIPAN_OUT) : path.join(root, 'dist');
+const ACCOUNT_BLOCK = account.apiBase ? 'SYNC' : 'LOCAL';
 const libs = []; // 頁面載入的兩個函式庫：CDN 網址，以及它在 node_modules 裡的同一個檔
 for (const name of ['lunar-javascript', 'iztro']) {
   const tag = page.match(new RegExp(`<script src="(https://cdn\\.jsdelivr\\.net/npm/${name}@([\\d.]+)/([^"]+))"([^>]*)>`)) || [];
@@ -60,8 +67,11 @@ if (webScript.includes('PaipanApp') || !appScript.includes('"PaipanApp"')) throw
      <!--@SITE--> … <!--@/SITE-->  網站版和 App 版都有：列印按鈕（發布平台的檢視框不允許開列印對話框，片段裡整段拿掉）
      <!--@WEB--> … <!--@/WEB-->    只有網站版：講瀏覽器列印對話框的說明
      <!--@APP--> … <!--@/APP-->    只有 App 版：講 iOS 列印面板的說明、資料存在哪裡、開放原始碼授權
-   留下的只拿掉標記那兩行，不留的連內容整段拿掉。標記不可以套疊 */
-const BLOCKS = ['SITE', 'WEB', 'APP'];
+     <!--@SYNC--> … <!--@/SYNC-->  有帳號功能的網站版、App 版（第 15 版，account.config.json 設了後端網址）：登入那一塊、提到同步的隱私說明
+     <!--@LOCAL--> … <!--@/LOCAL-->  沒有帳號功能時用的同一段說明（「不收集任何資料」那一版）
+   留下的只拿掉標記那兩行，不留的連內容整段拿掉。同名的標記不可以套疊；@SYNC、@LOCAL 可以放在 @WEB、@APP 裡面
+   （照下面的順序處理，外層的先拿掉或留下，裡面的再處理） */
+const BLOCKS = ['SITE', 'WEB', 'APP', 'SYNC', 'LOCAL'];
 const blockRe = name => new RegExp(`^[ \\t]*<!--@${name}-->\\n([\\s\\S]*?)^[ \\t]*<!--@\\/${name}-->\\n`, 'gm');
 for (const name of BLOCKS) {
   const n = (page.match(blockRe(name)) || []).length;
@@ -71,7 +81,7 @@ for (const name of BLOCKS) {
 }
 function keepBlocks(html, keep) {
   for (const name of BLOCKS) html = html.replace(blockRe(name), keep.includes(name) ? '$1' : '');
-  if (/<!--@\/?(SITE|WEB|APP)-->/.test(html)) throw new Error('src/index.html 的 @SITE、@WEB、@APP 區塊不可以套疊');
+  if (/<!--@\/?(SITE|WEB|APP|SYNC|LOCAL)-->/.test(html)) throw new Error('src/index.html 的 @SITE、@WEB、@APP、@SYNC、@LOCAL 區塊，同名的不可以套疊');
   return html;
 }
 
@@ -90,8 +100,8 @@ function inline(html, script) {
 }
 const out = inline(keepBlocks(page, []), webScript);
 
-fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
-const file = path.join(root, 'dist', 'paipan.html');
+fs.mkdirSync(dist, { recursive: true });
+const file = path.join(dist, 'paipan.html');
 fs.writeFileSync(file, out);
 console.log('已輸出', path.relative(root, file), (fs.statSync(file).size / 1024).toFixed(1) + ' KB');
 
@@ -101,10 +111,10 @@ console.log('已輸出', path.relative(root, file), (fs.statSync(file).size / 10
       少一個外部相依，CDN 連不上的地方也能用。
    3. 補上網站才需要的東西：說明文字、分頁圖示、分享連結時的標題。
    4. 留著 @SITE（列印按鈕）和 @WEB（列印的說明）區塊的內容。 */
-const siteDir = path.join(root, 'dist', 'site');
+const siteDir = path.join(dist, 'site');
 fs.rmSync(siteDir, { recursive: true, force: true }); // 整個重建，免得留著上一版的函式庫檔
 fs.mkdirSync(path.join(siteDir, 'lib'), { recursive: true });
-let site = inline(keepBlocks(page, ['SITE', 'WEB']), webScript);
+let site = inline(keepBlocks(page, ['SITE', 'WEB', ACCOUNT_BLOCK]), webScript);
 for (const lib of libs) {
   const local = `lib/${lib.name}-${lib.version}${lib.ext}`;
   if (site.split(lib.url).length !== 2) throw new Error(`頁面裡 ${lib.url} 應該恰好出現一次`);
@@ -138,6 +148,7 @@ const head = [
   '<meta name="mobile-web-app-capable" content="yes">',
   // 和發布平台補的骨架相同的基本樣式（含瀏海、Home 指示條的安全區域）；頁面的樣式接在後面
   '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>',
+  ...accountMeta(account),
   headPart,
 ].join('\n');
 fs.writeFileSync(path.join(siteDir, 'index.html'), `<!doctype html>\n<html lang="zh-Hant">\n<head>\n${head}\n</head>\n<body>\n${site.slice(cut)}</body>\n</html>\n`);
@@ -166,13 +177,13 @@ const manifest = {
 };
 fs.writeFileSync(path.join(siteDir, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');
 /* 第 14 版：支援頁與隱私權政策（src/pages/，App Store 的「支援網址」「隱私權政策網址」指到這兩頁）。
-   是獨立的小網頁，不用頁面的樣式與腳本，也不連外面的東西；照原樣複製 */
+   是獨立的小網頁，不用頁面的樣式與腳本，也不連外面的東西；照原樣複製，只處理 @SYNC、@LOCAL 區塊（第 15 版：有沒有帳號功能，說明不同） */
 const pages = fs.readdirSync(path.join(root, 'src', 'pages')).filter(f => f.endsWith('.html')).sort();
 if (JSON.stringify(pages) !== JSON.stringify(['privacy.html', 'support.html'])) throw new Error(`src/pages/ 應該是 privacy.html、support.html，現在是 ${pages.join('、')}`);
 for (const f of pages) {
   const html = read(`src/pages/${f}`);
   if (/<(?:script|link|img|iframe)\b/i.test(html) || /url\(|@import/i.test(html)) throw new Error(`src/pages/${f} 不可以載入腳本、外部樣式、圖片：這兩頁要在任何地方都打得開`);
-  fs.writeFileSync(path.join(siteDir, f), html);
+  fs.writeFileSync(path.join(siteDir, f), keepBlocks(html, ['SITE', 'WEB', 'APP', ACCOUNT_BLOCK]));
 }
 // 預先快取：頁面（網站的根，也就是 index.html）、manifest、兩個函式庫、四個圖示、支援頁與隱私權政策。授權條款不必離線
 const precache = ['./', 'manifest.webmanifest', ...libs.map(l => `lib/${l.name}-${l.version}${l.ext}`), ...icons.map(f => `icons/${f}`), ...pages];
@@ -190,17 +201,17 @@ console.log('已輸出 dist/site/（index.html、lib/ 裡的 ' + fs.readdirSync(
 
 /* 第 14 版：iPhone、iPad 的 App 裡的網頁，放在 dist/app/。npx cap sync ios 把它複製進 Xcode 專案（ios/App/App/public/），App 從那裡開。
    App 是 Capacitor 包起來的同一份網頁（capacitor.config.json），和網站版有四點不同：
-   1. 完全不連網路。函式庫和網站版一樣放在一起；字型不向 Google 要，改帶霞鶩文楷 TC（只帶 400、700 兩個字重，
+   1. 不連網路（第 15 版起，帳號的後端除外：用 Apple 登入後同步已存的盤）。函式庫和網站版一樣放在一起；字型不向 Google 要，改帶霞鶩文楷 TC（只帶 400、700 兩個字重，
       照 Unicode 範圍切成小檔，用到哪一段才讀哪一段）；內文的 Noto Sans TC 不帶，iPhone、iPad 上接著用系統的蘋方（字型清單的下一個）。
-      頁首再加一道內容安全政策：除了 App 自己的檔案，什麼都載不進來、也連不出去。
+      頁首再加一道內容安全政策：除了 App 自己的檔案，什麼都載不進來；連出去只能連帳號的後端。
    2. 腳本是 App 版的那一份（列印開 iOS 的列印面板、存起來的盤在原生那邊留備份，見 src/app/platform-app.js）。
    3. 沒有 manifest、主畫面圖示、service worker：App 本身就裝在裝置上，新版本跟著 App 一起更新。
    4. 留 @SITE（列印按鈕）和 @APP（列印與資料的說明、開放原始碼授權）區塊，拿掉 @WEB。 */
-const appDir = path.join(root, 'dist', 'app');
+const appDir = path.join(dist, 'app');
 fs.rmSync(appDir, { recursive: true, force: true });
 fs.mkdirSync(path.join(appDir, 'lib'), { recursive: true });
 fs.mkdirSync(path.join(appDir, 'fonts'));
-let app = inline(keepBlocks(page, ['SITE', 'APP']), appScript);
+let app = inline(keepBlocks(page, ['SITE', 'APP', ACCOUNT_BLOCK]), appScript);
 for (const lib of libs) {
   const local = `lib/${lib.name}-${lib.version}${lib.ext}`;
   if (app.split(lib.url).length !== 2) throw new Error(`頁面裡 ${lib.url} 應該恰好出現一次`);
@@ -253,7 +264,8 @@ const appCut = app.indexOf('<header');
 const GOOGLE_FONTS = /<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/[^"]*">\n/;
 if (!GOOGLE_FONTS.test(app.slice(0, appCut))) throw new Error('src/index.html 的 <head> 部分找不到 Google 字型的 <link>：App 版要把它換成自帶的字型');
 const appHeadPart = app.slice(0, appCut).replace(/<meta name="claude:[^>]*>\n?/, '').replace(GOOGLE_FONTS, '').trim();
-const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline'", "font-src 'self'", "img-src 'self' data:", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'none'"].join('; ');
+// 連出去只允許帳號的後端（有設的話；第 15 版）
+const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline'", "font-src 'self'", "img-src 'self' data:", `connect-src 'self'${account.apiBase ? ` ${account.apiBase}` : ''}`, "object-src 'none'", "base-uri 'none'", "form-action 'none'"].join('; ');
 const appHead = [
   '<meta charset="utf-8">',
   '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">',
@@ -261,6 +273,7 @@ const appHead = [
   '<link rel="stylesheet" href="fonts/fonts.css">',
   // 基本樣式和網站版相同（含瀏海、Home 指示條的安全區域）
   '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>',
+  ...accountMeta(account),
   appHeadPart,
 ].join('\n');
 const appDoc = `<!doctype html>\n<html lang="zh-Hant">\n<head>\n${appHead}\n</head>\n<body>\n${app.slice(appCut)}</body>\n</html>\n`;

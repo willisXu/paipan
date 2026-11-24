@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>隱私權政策｜八字紫微排盤</title>
-<meta name="description" content="八字紫微排盤（網頁版與 iPhone、iPad App）的隱私權政策：不收集任何資料，排盤在你的裝置上計算。">
+<meta name="description" content="八字紫微排盤（網頁版與 iPhone、iPad App）的隱私權政策：排盤在你的裝置上計算；不登入就不收集任何資料。">
 <style>
 :root { color-scheme: light dark; --paper: #ECEFED; --sheet: #F9FAF9; --ink: #1B232C; --ink-2: #47525C; --rule: #D5DCDA; --accent: #5A3D6E; }
 @media (prefers-color-scheme: dark) { :root { --paper: #0F1418; --sheet: #161D23; --ink: #E5EAEC; --ink-2: #A3AEB5; --rule: #26313A; --accent: #C9B0DF; } }
@@ -26,6 +26,7 @@ nav { margin: 0 0 14px; font-size: .95rem; }
 <h1>隱私權政策</h1>
 <p class="meta">八字紫微排盤（網頁版，以及 iPhone、iPad App「排盤」）。生效日期：2026 年 11 月 24 日</p>
 
+<!--@LOCAL-->
 <h2>一句話</h2>
 <p>我們不收集任何資料。你輸入的生辰只在你自己的裝置上計算，不會傳到網路上，開發者也看不到。</p>
 
@@ -48,6 +49,59 @@ nav { margin: 0 0 14px; font-size: .95rem; }
 
 <h2>兒童</h2>
 <p>本工具不是針對兒童設計的，也不收集任何人（包括兒童）的資料。</p>
+<!--@/LOCAL-->
+<!--@SYNC-->
+<h2>一句話</h2>
+<p>不登入，我們不收集任何資料：你輸入的生辰只在你自己的裝置上計算，不會傳到網路上。
+你選擇「使用 Apple 登入」來同步已存的盤時，我們只保存同步需要的東西：Apple 給的帳號代號，和你按「存」保存的盤。
+不要你的姓名、電子郵件，不做廣告、分析或追蹤，不和任何人分享，也不出售。</p>
+
+<h2>不登入時</h2>
+<ul>
+  <li>排盤（四柱、大運、紫微十二宮、讀盤紀錄、星曜解讀）全部在你的裝置上計算，不需要註冊或登入。</li>
+  <li>按「存」保存的生辰只存在這台裝置上：網頁版存在瀏覽器裡；App 存在 App 裡，並在 App 自己的設定檔另外留一份備份，用來在系統清掉網頁資料時補回。</li>
+  <li>這些資料不上傳。刪掉已存的盤、刪除 App（或清除瀏覽器的網站資料）就會一起刪除。</li>
+</ul>
+
+<h2>用 Apple 登入之後（選用）</h2>
+<p>登入是為了在你的 iPhone、iPad 和網頁之間同步「已存的盤」，不是使用的條件。登入後，我們的伺服器會保存：</p>
+<ul>
+  <li><b>Apple 給的帳號代號</b>：一串代碼，用來認出是同一個人。Apple 給每個開發者的代碼都不同；我們不要求、也拿不到你的姓名和電子郵件。</li>
+  <li><b>你保存的盤</b>：每一筆的代稱（「姓名或代稱」那一欄，可以留空）、性別、曆法與出生日期時間、出生地（或經度與時區）、時間的換算設定、紫微的流派設定。最多 100 筆。</li>
+  <li><b>讓登入和同步運作的紀錄</b>：帳號建立與最後登入的時間；每台裝置的登入憑證（只存它的雜湊）與使用時間；
+    Apple 發給我們的授權權杖（加密保存，只用來在你刪除帳號時向 Apple 撤銷授權）。</li>
+</ul>
+<p>這些資料只用來讓你在自己的裝置之間同步已存的盤。登入憑證放在你的裝置上：App 放在系統的鑰匙圈裡，網頁版放在瀏覽器裡。</p>
+
+<h2>資料放在哪裡、怎麼保護</h2>
+<ul>
+  <li>伺服器使用 Cloudflare 的 Workers 與 D1 資料庫，資料放在 Cloudflare 的資料中心，可能位於台灣以外的地區。裝置與伺服器之間的連線一律加密（HTTPS）。</li>
+  <li>只有你登入的裝置拿得到你的盤；開發者只在維護服務必要時接觸資料庫，不會為了其他目的查看。</li>
+  <li>Cloudflare 會收到一般的連線資訊（例如 IP 位址），依其隱私權政策處理；服務的執行紀錄只記錄請求的時間、路徑與錯誤，不含你保存的盤。</li>
+</ul>
+
+<h2>刪除與保存期間</h2>
+<ul>
+  <li><b>刪除帳號</b>：在 App 或網頁的生辰資料下方按「刪除帳號」。帳號、所有已存的盤、各裝置的登入憑證會立刻從伺服器刪除，並向 Apple 撤銷這個 App 的授權；那台裝置上從帳號同步來的盤也一起移除。</li>
+  <li>你也可以在 Apple 帳號的設定裡停止讓「排盤」使用 Apple 登入，或刪除 Apple 帳號。我們收到 Apple 的通知後，同樣刪除你的帳號與所有資料。</li>
+  <li><b>登出</b>只讓那台裝置離開，帳號和雲端的盤保留，再登入就回來。登入憑證 180 天沒有使用會自動失效。</li>
+  <li>資料庫供應商為了災難復原保留的備份，最長 30 天後自動覆蓋。</li>
+</ul>
+
+<h2>網路連線</h2>
+<ul>
+  <li><b>App</b>：不登入時完全不連網路，程式、曆法函式庫、字型都放在 App 裡。登入後只連 Apple（登入）和我們的伺服器（同步）。</li>
+  <li><b>網頁版</b>放在 GitHub Pages，字型向 Google Fonts 載入。打開網頁時，你的瀏覽器會向 GitHub 與 Google 的伺服器要檔案，
+    它們會收到一般的連線資訊（例如 IP 位址、瀏覽器種類），依各自的隱私權政策處理；我們拿不到這些資訊。登入時另外連到 Apple 的登入頁和我們的伺服器。</li>
+</ul>
+
+<h2>第三方</h2>
+<p>只有提供服務所需的幾家：Apple（使用 Apple 登入）、Cloudflare（伺服器與資料庫）、GitHub（網頁的主機）、Google Fonts（網頁版的字型）。
+沒有廣告，沒有分析、追蹤或當機回報的工具，不和其他任何人分享資料，也不出售。</p>
+
+<h2>兒童</h2>
+<p>本工具不是針對兒童設計的，也不刻意收集兒童的資料。</p>
+<!--@/SYNC-->
 
 <h2>政策的變更</h2>
 <p>這份政策若有變更，會更新本頁與上面的生效日期。</p>
@@ -57,11 +111,24 @@ nav { margin: 0 0 14px; font-size: .95rem; }
 
 <h2 lang="en">Privacy Policy (English summary)</h2>
 <div lang="en">
+<!--@LOCAL-->
 <p>We do not collect any data. Charts are computed on your device; birth data you choose to save stays on that device only
 (the iOS app also keeps a backup copy in its own settings storage so it can restore saved charts if iOS clears web data).
 Nothing is uploaded, synced or shared. The iOS app makes no network connections at all. The web version is hosted on GitHub Pages
 and loads fonts from Google Fonts, which receive standard connection information (such as your IP address) under their own policies.
 There are no ads, analytics, tracking or crash-reporting tools. Questions: <a href="https://github.com/willisXu/paipan/issues">GitHub issues</a>.</p>
+<!--@/LOCAL-->
+<!--@SYNC-->
+<p>We do not collect any data unless you sign in: charts are computed on your device and saved charts stay on that device
+(the iOS app also keeps a backup copy in its own settings storage). Signing in with Apple is optional and only syncs your saved charts
+between your iPhone, iPad and the web. When signed in we store the user identifier Apple provides (we never ask for or receive your name
+or email), the charts you saved (nickname, sex, birth date and time, birthplace or longitude and time zone, chart settings), and the records
+needed for sign-in (account and session timestamps, hashed session tokens, and an encrypted Apple token used only to revoke access when
+you delete your account). Data is stored with Cloudflare (Workers and D1) and sent over HTTPS. Delete your account in the app or on the
+web at any time; your account, charts and sessions are deleted immediately and Apple access is revoked. Backups kept by the database
+provider are overwritten within 30 days. No ads, analytics, tracking, sharing or selling of data.
+Questions: <a href="https://github.com/willisXu/paipan/issues">GitHub issues</a>.</p>
+<!--@/SYNC-->
 </div>
 </article>
 </main>

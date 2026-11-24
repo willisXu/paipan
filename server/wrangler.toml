@@ -1,0 +1,29 @@
+# 八字紫微排盤的帳號與同步後端（Cloudflare Workers ＋ D1）。部署步驟見 server/README.md
+name = "paipan-api"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+# 不是祕密的設定。APPLE_TEAM_ID、APPLE_KEY_ID 在 Apple 開發者網站建好「使用 Apple 登入」的金鑰後填上
+# 祕密（SESSION_SECRET、TOKEN_KEY、APPLE_PRIVATE_KEY）不寫在這裡，用 npx wrangler secret put 設定
+[vars]
+ALLOWED_ORIGINS = "https://willisxu.github.io,capacitor://localhost"
+APPLE_APP_ID = "io.github.willisxu.paipan"
+APPLE_WEB_CLIENT_ID = "io.github.willisxu.paipan.web"
+APPLE_WEB_REDIRECT = "https://willisxu.github.io/paipan/"
+APPLE_TEAM_ID = ""
+APPLE_KEY_ID = ""
+
+# database_id 換成 npx wrangler d1 create paipan 印出來的那一串
+[[d1_databases]]
+binding = "DB"
+database_name = "paipan"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# 每天清一次過期的登入憑證與 nonce 紀錄（UTC 19:17，台灣時間凌晨 3:17）
+[triggers]
+crons = ["17 19 * * *"]
+
+[observability]
+enabled = true

@@ -21,6 +21,10 @@ export default [
   // 網頁 App 的 service worker（第 13 版）：在 worker 裡跑，沒有 document
   { files: ['src/sw.js'], languageOptions: { globals: globals.serviceworker } },
   { files: ['scripts/**', 'eslint.config.js'], languageOptions: { globals: globals.node } },
+  // 帳號與同步的後端（第 15 版）：Cloudflare Workers 的執行環境和 service worker 一樣（fetch、Response、crypto…），沒有 Node 的 API；
+  // 它的測試在 Node 跑
+  { files: ['server/src/**'], languageOptions: { globals: globals.serviceworker } },
+  { files: ['server/test/**'], languageOptions: { globals: globals.node } },
   // 測試在 Node 執行，但 page.evaluate 裡的函式是送到瀏覽器跑的，所以兩邊的全域變數都會出現
   { files: ['test/**'], languageOptions: { globals: { ...globals.node, ...globals.browser, ...libs } }, rules: { 'no-shadow': 'off' } },
 ];

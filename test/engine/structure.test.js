@@ -80,6 +80,19 @@ console.log('■ 模組最上層沒有副作用');
   ok(touched.length === 0, `載入過程沒有在全域留下東西${touched.length ? '：' + touched.join('、') : ''}`);
 }
 
+console.log('■ 連網路的地方（第 15 版）');
+{
+  // 頁面裡只有帳號（account.js）連網路，而且只連帳號的後端。別的模組也要連網路的話，App 的內容安全政策、隱私權政策都要跟著改，
+  // 所以在這裡擋一下，讓那個決定是有意識的
+  const fetchers = appFiles.filter(f => /\bfetch\(/.test(fs.readFileSync(path.join(root, f), 'utf8')));
+  ok(JSON.stringify(fetchers) === '["src/app/account.js"]', `頁面模組裡只有 account.js 呼叫 fetch：${fetchers.join('、') || '沒有'}`);
+  // 後端（server/）是另外部署到 Cloudflare 的程式：只 import 自己資料夾裡的檔，不用套件，也不碰網頁的程式
+  const serverFiles = listJs('server/src');
+  const imports = serverFiles.flatMap(f => importsOf(f).map(d => [f, d]));
+  const bad = imports.filter(([, d]) => !d.startsWith('server/src/') || !serverFiles.includes(d));
+  ok(serverFiles.length >= 3 && bad.length === 0, `後端的 ${serverFiles.length} 個檔只 import server/src 裡的檔${bad.length ? '：' + bad.map(([f, d]) => `${f} → ${d}`).join('、') : ''}`);
+}
+
 console.log('■ 發布流程');
 {
   // GitHub Actions 用到的 action 要釘在確切的 commit（40 位的雜湊），後面註明是哪一版：版本號的標籤可以被改指到別的內容。

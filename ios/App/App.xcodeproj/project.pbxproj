@@ -23,6 +23,7 @@
 
 /* Begin PBXFileReference section */
 		7A5E1C0A2EE4000100000005 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7A5E1C0A2EE4000100000007 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		7A5E1C0A2EE4000100000003 /* PaipanAppPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaipanAppPlugin.swift; sourceTree = "<group>"; };
 		7A5E1C0A2EE4000100000001 /* PaipanViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaipanViewController.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -74,6 +75,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7A5E1C0A2EE4000100000005 /* PrivacyInfo.xcprivacy */,
+				7A5E1C0A2EE4000100000007 /* App.entitlements */,
 				7A5E1C0A2EE4000100000003 /* PaipanAppPlugin.swift */,
 				7A5E1C0A2EE4000100000001 /* PaipanViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -312,6 +314,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = App/Info.plist;
@@ -335,6 +338,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = App/Info.plist;

@@ -34,14 +34,34 @@ nav { margin: 0 0 14px; font-size: .95rem; }
 
 <h2>常見問題</h2>
 <h3>怎麼保存一張盤？</h3>
-<p>填好生辰後按「存」。存起來的盤列在生辰資料的標題旁，點一下就載入，按 × 刪除。最多保留 20 筆。</p>
+<p>填好生辰後按「儲存此盤」。存起來的盤列在生辰資料的標題下面，點一下就載入，按 × 刪除。最多保留 100 筆，超過時最舊的會被擠掉。</p>
+<!--@LOCAL-->
 <h3>換一支手機，存的盤會跟過去嗎？</h3>
 <p>不會。資料只存在原本那台裝置上，不上傳、不同步（見<a href="privacy.html">隱私權政策</a>）。到新裝置上重新輸入生辰即可。</p>
+<!--@/LOCAL-->
+<!--@SYNC-->
+<h3>換一支手機、或想在 iPad 和電腦上也看到存的盤？</h3>
+<p>在生辰資料下方按「使用 Apple 登入」。用同一個 Apple 帳號登入的 iPhone、iPad 和網頁，看到的是同一份已存的盤：
+在一台存、刪，其他台幾秒內或下次打開時就會跟上；沒有網路時照常存，連上網路再同步。第一次登入時，這台原本存的盤會併進帳號。</p>
+<h3>一定要登入嗎？</h3>
+<p>不用。不登入什麼功能都能用，存的盤只放在這台裝置上，也不連網路。登入只為了在幾台裝置之間同步。我們不要你的姓名和電子郵件，
+Apple 只給我們一串帳號代號（見<a href="privacy.html">隱私權政策</a>）。</p>
+<h3>登出會怎樣？</h3>
+<p>這台裝置離開帳號：從帳號同步來的盤會從這台移除，雲端的那份保留，再登入就回來。登出前會先同步一次，剛存還沒上傳的不會不見。</p>
+<h3>怎麼刪除帳號？</h3>
+<p>登入後，在生辰資料下方按「刪除帳號…」，確認之後，帳號、雲端上所有已存的盤、各裝置的登入憑證都會刪除，無法復原，
+並同時撤銷這個 App 的 Apple 登入授權。只想停止同步，用「登出」就好。</p>
+<!--@/SYNC-->
 <h3>怎麼印出來或存成 PDF？</h3>
 <p>App：按「列印／存 PDF」打開 iOS 的列印面板，可以直接印，或按分享存到「檔案」。網頁版：在列印對話框把目的地選成「另存為 PDF」。
 「八字、紫微一起印」兩個都印，紫微斗數從新的一頁開始。</p>
 <h3>沒有網路能用嗎？</h3>
+<!--@LOCAL-->
 <p>App 完全不需要網路。網頁版加到主畫面、打開過一次之後，沒有網路也能排盤。</p>
+<!--@/LOCAL-->
+<!--@SYNC-->
+<p>排盤完全不需要網路：App 不登入就不連網路；網頁版加到主畫面、打開過一次之後，沒有網路也能排盤。只有登入和同步已存的盤需要網路。</p>
+<!--@/SYNC-->
 <h3>可以排的範圍？</h3>
 <p>公曆 1900 到 2100 年。夏令時間、真太陽時、子時換日的處理方式，在表單下方的說明裡。</p>
 <h3>排出來的和別的軟體不一樣？</h3>
@@ -53,9 +73,17 @@ nav { margin: 0 0 14px; font-size: .95rem; }
 
 <h2 lang="en">Support (English)</h2>
 <div lang="en">
+<!--@LOCAL-->
 <p>Bazi &amp; Zi Wei Dou Shu charting tool (Traditional Chinese). Enter a birth date and time to draw both charts, with rule-based
 study notes that cite their basis. Everything runs on your device; the iOS app works fully offline and collects no data.
 To report a problem or ask a question, please open an issue on <a href="https://github.com/willisXu/paipan/issues">GitHub</a>.</p>
+<!--@/LOCAL-->
+<!--@SYNC-->
+<p>Bazi &amp; Zi Wei Dou Shu charting tool (Traditional Chinese). Enter a birth date and time to draw both charts, with rule-based
+study notes that cite their basis. Charts are computed on your device and work offline. Optionally sign in with Apple to sync your saved
+charts between iPhone, iPad and the web; you can sign out or delete your account (below the birth data form) at any time.
+To report a problem or ask a question, please open an issue on <a href="https://github.com/willisXu/paipan/issues">GitHub</a>.</p>
+<!--@/SYNC-->
 </div>
 </article>
 </main>
