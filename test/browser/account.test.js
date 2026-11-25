@@ -149,6 +149,8 @@ const reloaded = page => page.waitForFunction(() => !window.__old && document.re
     const miss = must.filter(t => !privacy.includes(t));
     ok(miss.length === 0 && !privacy.includes('我們不收集任何資料。你輸入的生辰') && !/<!--@/.test(privacy), `隱私權政策：寫明登入後存什麼、放在哪、怎麼刪，不再說「不收集任何資料」${miss.length ? '；缺：' + miss.join('、') : ''}`);
     ok(['使用 Apple 登入', '刪除帳號…', '登出會怎樣', '最多保留 100 筆'].every(t => support.includes(t)) && !support.includes('不會。資料只存在原本那台裝置上') && !/<!--@/.test(support), '支援頁：常見問題講登入、同步、登出、刪除帳號');
+    const mails = s => (s.match(/mailto:a95805@icloud\.com/g) || []).length;
+    ok(mails(privacy) === 2 && mails(support) === 2, `有帳號功能的那一份：兩頁的中文、英文段落也都寫著聯絡信箱（${mails(privacy)}、${mails(support)} 個）`);
     const fragment = fs.readFileSync(path.join(tmp, 'paipan.html'), 'utf8');
     ok(!fragment.includes('id="acct"') && !fragment.includes('<meta name="paipan-api"'), '同一次建置的發布平台片段：照樣沒有帳號功能');
   }

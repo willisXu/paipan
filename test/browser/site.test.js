@@ -78,13 +78,17 @@ const sha = f => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('
     const foot = page.locator('footer.colophon');
     ok(await foot.locator('a[href="support.html"]').count() === 1 && await foot.locator('a[href="privacy.html"]').count() === 1, '網站版的頁尾連到支援頁與隱私權政策');
     external.length = 0; // 排盤頁自己會去要 Google 字型；下面只看兩個小頁
-    for (const [file, title, must] of [['privacy.html', '隱私權政策｜八字紫微排盤', ['不收集任何資料', '只存在這台裝置上', '完全不連網路', 'Google Fonts', 'We do not collect any data']],
-      ['support.html', '支援｜八字紫微排盤', ['常見問題', '存起來', '列印', 'github.com/willisXu/paipan/issues']]]) {
+    // 聯絡方式：App Store 要求支援頁找得到聯絡方式（1.5），只留 GitHub 的問題回報不夠直接，兩頁都寫上信箱（中文與英文段落都有）
+    const MAIL = 'href="mailto:a95805@icloud.com"';
+    for (const [file, title, must] of [['privacy.html', '隱私權政策｜八字紫微排盤', ['不收集任何資料', '只存在這台裝置上', '完全不連網路', 'Google Fonts', 'We do not collect any data', 'github.com/willisXu/paipan/issues', MAIL]],
+      ['support.html', '支援｜八字紫微排盤', ['常見問題', '存起來', '列印', 'github.com/willisXu/paipan/issues', MAIL]]]) {
       await page.goto(server.url + file);
       const info = await page.evaluate(() => ({ lang: document.documentElement.lang, title: document.title, text: document.body.innerText, html: document.body.innerHTML, home: !!document.querySelector('a[href="./"]') }));
       ok(info.lang === 'zh-Hant' && info.title === title && info.home, `${file}：繁體中文、標題「${info.title}」、有連回排盤頁`);
       const miss = must.filter(t => !info.text.includes(t) && !info.html.includes(t));
       ok(miss.length === 0, `${file} 寫到了該寫的事${miss.length ? '；缺：' + miss.join('、') : ''}`);
+      const mails = (info.html.match(/mailto:a95805@icloud\.com/g) || []).length;
+      ok(mails === 2, `${file}：中文、英文段落各有一個聯絡信箱（${mails} 個）`);
       await page.evaluate(AXE);
       const { violations } = await page.evaluate(() => window.axe.run(document, { resultTypes: ['violations'] }));
       ok(violations.length === 0, `${file}：axe-core 沒有違規${violations.length ? '：' + violations.map(v => v.id).join('、') : ''}`);

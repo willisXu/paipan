@@ -2,7 +2,7 @@
 
 單頁排盤工具：同一份生辰排出子平八字與紫微斗數命盤，並照規則寫出八字的讀盤紀錄與紫微的星曜解讀（說的是傾向，不是判決）。
 可排的範圍是公曆 1900 到 2100 年。可以加到 iPhone、iPad 的主畫面當成 App 用，沒有網路也能排盤；
-另有包成 iPhone、iPad 原生 App 的版本（第 14 版，準備上架 App Store，見下面「iPhone、iPad App」）。
+另有包成 iPhone、iPad 原生 App 的版本（第 14 版，2026-11-25 送 App Store 審查，見下面「iPhone、iPad App」）。
 可以選擇用 Apple 登入，在 iPhone、iPad 與網頁之間同步已存的盤（第 15 版，見下面「帳號與同步」）；不登入一切照舊。
 
 線上版：https://willisxu.github.io/paipan/
@@ -59,7 +59,7 @@ build 的輸出在 `dist/`，不進版本庫：
 
 ## iPhone、iPad App（第 14 版，Capacitor）
 
-同一份網頁用 [Capacitor](https://capacitorjs.com/) 8 包成原生 App，準備上架 App Store。識別碼 `io.github.willisxu.paipan`，主畫面上叫「排盤」，
+同一份網頁用 [Capacitor](https://capacitorjs.com/) 8 包成原生 App，已送 App Store 審查（1.0，建置 1）。識別碼 `io.github.willisxu.paipan`，主畫面上叫「排盤」，
 iPhone、iPad 都支援，最低 iOS 16。原生專案在 `ios/`（提交進版本庫；`ios/App/App/public` 是複製過去的網頁，不提交）。
 
 ```

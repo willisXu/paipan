@@ -2,7 +2,12 @@
 
 版次就是發布到線上的版次。
 
-## 第 15 版（還沒發布，和第 14 版一起上線）帳號與同步：用 Apple 登入，已存的盤在 iPhone、iPad、網頁之間同步
+## 第 15 版（2026-11-25，和第 14 版一起發布）帳號與同步：用 Apple 登入，已存的盤在 iPhone、iPad、網頁之間同步
+
+發布
+- 後端部署在 Cloudflare：`https://paipan-api.zhixuan-willis.workers.dev`（設定檔 `server/wrangler.jsonc`，D1 在亞太區）。
+- iOS 專案直接指定付費的開發者團隊（自動簽署）；App 1.0（建置 1）上傳 TestFlight，送 App Store 審查。
+- 支援頁與隱私權政策加上聯絡信箱（App Store 要求支援頁找得到聯絡方式）；隱私權政策的生效日期改成 2026 年 11 月 25 日。
 
 新增
 - 用 Apple 登入（選用）：生辰資料下方多一塊「使用 Apple 登入」，說明登入是為了同步、不登入照常能用。網頁走 Apple 的網頁登入
@@ -35,7 +40,7 @@
 - 故意改壞 29 處（後端 13、合併 1、頁面 6、App 與建置 4、原生 5）：28 處被抓到；第一輪沒抓到的兩處（寫入時拿舊的非零版本號、
   同步紀錄不看 sid）補了測試後抓到。剩下一處（欄位檢查的 `Object.hasOwn` 改成 `in`）行為上沒有差別：原型上的鍵型別一定對不上，照樣擋掉。
 
-## 第 14 版（還沒發布）iPhone、iPad App（準備上架 App Store）
+## 第 14 版（2026-11-25）iPhone、iPad App（送 App Store 審查）
 
 新增
 - 原生 App：同一份網頁用 Capacitor 8 包成 iPhone、iPad 的 App（識別碼 `io.github.willisxu.paipan`，主畫面上叫「排盤」，最低 iOS 16）。
