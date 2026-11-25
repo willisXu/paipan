@@ -105,6 +105,9 @@ console.log('■ 發布流程');
     const uses = [...wf.matchAll(/^\s*(?:- )?uses:\s*(\S+)(.*)$/gm)].map(m => ({ ref: m[1], rest: m[2] }));
     const loose = uses.filter(u => !/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/.test(u.ref) || !/#\s*v\d+\.\d+\.\d+/.test(u.rest));
     ok(uses.length >= 3 && loose.length === 0, `${f} 的 ${uses.length} 個 action 都釘在 commit 並註明版本${loose.length ? '；沒釘的：' + loose.map(u => u.ref).join('、') : ''}`);
+    // shell 裡 $NAME 後面緊接中文（例如全形括號），macOS 的 bash 會把那個位元組當成變數名稱的一部分，set -u 時直接失敗：要寫成 ${NAME}
+    const glued = [...wf.matchAll(/\$[A-Za-z_]\w*(?=[\u0080-￿])/g)].map(m => m[0]);
+    ok(glued.length === 0, `${f} 的 shell 變數後面沒有直接接中文${glued.length ? '；要加大括號：' + glued.join('、') : ''}`);
   }
 }
 

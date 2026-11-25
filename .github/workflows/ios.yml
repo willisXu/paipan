@@ -67,7 +67,7 @@ jobs:
             console.log(all[all.length - 1].udid + "\t" + all[all.length - 1].name);' "$1"; }
           for PATTERN in '^iPhone [0-9]+ Pro Max$' '^iPad Pro 13-inch'; do
             IFS=$'\t' read -r UDID NAME < <(pick "$PATTERN")
-            echo "裝置：$NAME（$UDID）"
+            echo "裝置：${NAME}（${UDID}）"
             xcrun simctl boot "$UDID"
             xcrun simctl bootstatus "$UDID" -b
             xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
