@@ -115,6 +115,9 @@ section('使用 Apple 登入（第 15 版）：entitlements、登入的請求、
   const ent = parsePlist(read(`${APP}/App.entitlements`));
   eq(ent, { 'com.apple.developer.applesignin': ['Default'] }, 'App.entitlements 只開「使用 Apple 登入」（Xcode 的自動簽署會照這份替 App ID 開權限）');
   eq(settings('CODE_SIGN_ENTITLEMENTS'), ['App/App.entitlements', 'App/App.entitlements'], 'Debug、Release 都指到這份 entitlements');
+  // 個人團隊不支援「使用 Apple 登入」，所以專案直接指定付費的開發者團隊（Team ID 本來就印在每個 App 的簽章裡，不是秘密）
+  eq(settings('DEVELOPMENT_TEAM'), ['AH6JQ2CLG9', 'AH6JQ2CLG9'], 'Debug、Release 都用付費的開發者團隊簽署（自動簽署）');
+  eq(settings('CODE_SIGN_STYLE'), ['Automatic', 'Automatic'], '簽署交給 Xcode 自動管理');
   ok(/\b([0-9A-F]{24}) \/\* App\.entitlements \*\/ = \{isa = PBXFileReference; lastKnownFileType = text\.plist\.entitlements; path = App\.entitlements;/.test(pbx) && !phase('Resources').includes('App.entitlements'), '專案裡看得到這個檔，但不複製進 App（entitlements 是簽署用的，不是資源）');
   ok(/request\.requestedScopes = \[\]/.test(plugin), '登入不要求姓名與電子郵件（requestedScopes 是空的）');
   ok(/request\.nonce = SHA256\.hash\(data: Data\(nonce\.utf8\)\)\.map \{ String\(format: "%02x", \$0\) \}\.joined\(\)/.test(plugin), '交給 Apple 的 nonce 是 SHA-256 的十六進位小寫（後端照這個比對）');
